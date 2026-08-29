@@ -2,7 +2,7 @@
 
 A loan that is still running has not yet revealed whether it is good or bad.
 The common shortcut is to treat every non-default loan as good, which on this
-extract moves the observed bad rate from 19.97% to 11.90% — eight points of
+extract moves the observed bad rate from 19.96% to 11.90%, eight points of
 optimism baked in before a single feature exists. Every metric computed
 afterwards inherits it, and nothing about the model looks wrong.
 
@@ -192,8 +192,12 @@ def build_target(
         config=config,
     )
 
-    out = frame.loc[resolved].drop(columns=[status_column])
-    out[TARGET_COLUMN] = is_bad.loc[resolved].astype("int8").to_numpy()
+    # Built in one operation rather than by inserting a column: on a wide
+    # frame the insertion fragments the block manager and pandas warns about
+    # it, which is noise in the output of a documented command.
+    out = frame.loc[resolved].drop(columns=[status_column]).assign(
+        **{TARGET_COLUMN: is_bad.loc[resolved].astype("int8").to_numpy()}
+    )
     return out, report
 
 
