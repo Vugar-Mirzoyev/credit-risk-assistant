@@ -23,11 +23,20 @@ a monitoring system that can never fire.
 **Empty buckets are floored, not merged.** This is the opposite of the rule in
 ``woe.py``, and deliberately so. There, bins are ours to choose and merging
 keeps every bin interpretable. Here the buckets have to be identical on both
-sides or the two distributions are not being compared at all, so a bucket the
-actual window happens not to reach is floored to a small share. The floor
-bounds that bucket's contribution instead of letting a logarithm of zero take
-the whole index to infinity, and the floor is reported so the reader knows it
-was applied.
+sides or the two distributions are not being compared at all, so a bucket a
+window never reaches is given the share half an observation would have had.
+
+The floor is half an observation rather than a fixed constant because the index
+is extremely sensitive to it. A feature that goes from mostly missing to fully
+populated scores 11.4 against a floor of 1e-6 and 8.5 against 1e-4: the drift
+is real, but the digits belong to the floor, not to the data. Tying the floor
+to the window size at least makes it the smallest quantity that window could
+have expressed.
+
+Even then, an index whose value comes mostly from empty buckets is a signal and
+not a measurement. Every result reports the share of itself contributed by
+floored buckets, and says so plainly when that share dominates: the band is
+still worth reading, the decimals are not.
 
 Why this module exists at all: the champion's calibration slope on the holdout
 is 0.84 rather than 1.0, and its bad rate rises from 19.47% in training to
@@ -42,9 +51,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-#: Share substituted for a bucket the actual window never reaches. Without it
-#: the logarithm is undefined and one empty bucket destroys the whole index.
-SHARE_FLOOR = 1e-6
+#: Above this share of the index coming from floored buckets, the value is
+#: driven by empty buckets rather than by the distributions.
+FLOOR_DOMINATES_ABOVE = 0.5
 
 MISSING_LABEL = "Missing"
 
@@ -81,6 +90,18 @@ class Stability:
     def floored_buckets(self) -> int:
         return sum(1 for b in self.buckets if b.floored)
 
+    @property
+    def floored_share(self) -> float:
+        """How much of the index comes from buckets a window never reached."""
+        if not self.psi:
+            return 0.0
+        return sum(b.contribution for b in self.buckets if b.floored) / self.psi
+
+    @property
+    def floor_driven(self) -> bool:
+        """The band still means something; the decimals do not."""
+        return self.floored_share > FLOOR_DOMINATES_ABOVE
+
     def summary(self) -> str:
         line = (
             f"PSI                     {self.psi:.4f}  ({self.band})\n"
@@ -89,7 +110,15 @@ class Stability:
             f"buckets                 {len(self.buckets)}"
         )
         if self.floored_buckets:
-            line += f"\nfloored buckets         {self.floored_buckets}"
+            line += (
+                f"\nfloored buckets         {self.floored_buckets} "
+                f"({self.floored_share:.0%} of the index)"
+            )
+        if self.floor_driven:
+            line += (
+                "\n  driven by buckets one window never reached; read the band, "
+                "not the digits"
+            )
         return line
 
     def to_markdown(self) -> str:
@@ -105,7 +134,11 @@ class Stability:
                 f"{item.contribution:.4f} |"
             )
         if self.floored_buckets:
-            lines += ["", f"`*` share floored at {SHARE_FLOOR:g}."]
+            lines += [
+                "",
+                "`*` empty in one window; share floored at half an observation "
+                f"({self.floored_share:.0%} of the index).",
+            ]
         return "\n".join(lines)
 
 
@@ -190,6 +223,7 @@ def stability_by_quarter(
                 "rows": len(window),
                 "psi": round(result.psi, 4),
                 "band": result.band,
+                "floor_driven": result.floor_driven,
             }
         )
     return pd.DataFrame(rows)
@@ -224,12 +258,18 @@ def characteristic_stability(
                 "kind": kind,
                 "csi": round(result.psi, 4),
                 "band": result.band,
+                "floor_driven": result.floor_driven,
                 "buckets": len(result.buckets),
             }
         )
     return pd.DataFrame(rows).sort_values("csi", ascending=False).reset_index(
         drop=True
     )
+
+
+def _floor(rows: int) -> float:
+    """Half an observation, as a share of the window."""
+    return 0.5 / rows if rows else 0.0
 
 
 def _assemble(
@@ -239,6 +279,8 @@ def _assemble(
     expected_rows: int,
     actual_rows: int,
 ) -> Stability:
+    expected_floor = _floor(expected_rows)
+    actual_floor = _floor(actual_rows)
     buckets: list[StabilityBucket] = []
     total = 0.0
     for label, expected, actual in zip(labels, expected_counts, actual_counts):
@@ -247,9 +289,9 @@ def _assemble(
             continue
         expected_share = expected / expected_rows if expected_rows else 0.0
         actual_share = actual / actual_rows if actual_rows else 0.0
-        floored = expected_share < SHARE_FLOOR or actual_share < SHARE_FLOOR
-        safe_expected = max(expected_share, SHARE_FLOOR)
-        safe_actual = max(actual_share, SHARE_FLOOR)
+        floored = expected == 0 or actual == 0
+        safe_expected = max(expected_share, expected_floor)
+        safe_actual = max(actual_share, actual_floor)
         contribution = (safe_actual - safe_expected) * math.log(
             safe_actual / safe_expected
         )

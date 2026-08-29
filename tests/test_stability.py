@@ -14,7 +14,6 @@ import pandas as pd
 import pytest
 
 from src.evaluation.stability import (
-    SHARE_FLOOR,
     categorical_stability,
     characteristic_stability,
     numeric_stability,
@@ -201,6 +200,41 @@ def test_the_floor_is_reported_not_hidden():
     expected = np.linspace(0, 100, 10000)
     actual = np.linspace(0, 40, 10000)
 
-    table = numeric_stability(expected, actual).to_markdown()
+    result = numeric_stability(expected, actual)
 
-    assert f"{SHARE_FLOOR:g}" in table
+    assert "floored at half an observation" in result.to_markdown()
+    assert "of the index" in result.summary()
+
+
+def test_an_index_made_of_empty_buckets_says_so():
+    # A feature that is almost entirely missing in one window and populated in
+    # the other produces a huge index whose digits belong to the floor, not to
+    # the data. The band is worth reading; the value is not, and the result has
+    # to say which is which.
+    expected = np.concatenate([np.full(9000, np.nan), np.linspace(0, 1, 1000)])
+    actual = np.linspace(0, 1, 10000)
+
+    result = numeric_stability(expected, actual)
+
+    assert result.band == "shifted, investigate"
+    assert result.floor_driven
+    assert "read the band" in result.summary()
+
+
+def test_an_ordinary_shift_is_not_floor_driven():
+    result = numeric_stability(_normal(seed=1), _normal(loc=1.0, seed=2))
+
+    assert result.band == "shifted, investigate"
+    assert not result.floor_driven
+
+
+def test_the_floor_scales_with_the_window():
+    # Half an observation in a small window is a larger share than in a big
+    # one, so the same qualitative gap must not produce the same number by
+    # accident.
+    small = numeric_stability(np.linspace(0, 100, 1000), np.linspace(0, 40, 1000))
+    large = numeric_stability(
+        np.linspace(0, 100, 100000), np.linspace(0, 40, 100000)
+    )
+
+    assert large.psi > small.psi
