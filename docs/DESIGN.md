@@ -95,6 +95,11 @@ The cutoff is set in `config/config.yaml` after inspecting the yearly volume
 table produced by `scripts/profile_data.py`, targeting roughly 20-25% of
 resolved loans in the holdout window.
 
+No calendar year lands in that band on this extract: 2017 onward is 16.8% of
+resolved loans and 2016 onward is 38.6%. The cutoff is therefore quarterly.
+`2016-10-01` puts 282,970 resolved loans in the holdout, 21.0% of the resolved
+population.
+
 ### D4 — Champion and challenger are both reported
 
 - **Champion:** logistic regression scorecard over WOE-transformed features.
@@ -134,7 +139,8 @@ credit-risk-assistant/
 ├── pyproject.toml            # pytest configuration
 ├── setup.ps1                 # Windows scaffold
 ├── config/
-│   └── config.yaml           # every tunable number lives here
+│   ├── config.yaml           # every tunable number lives here
+│   └── column_availability.csv  # D2 audit, maintained by hand
 ├── data/                     # not tracked
 │   ├── raw/                  # accepted_2007_to_2018Q4.csv (~1.6 GB)
 │   ├── interim/

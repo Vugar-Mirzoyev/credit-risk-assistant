@@ -51,8 +51,11 @@ profile:
   availability_path: config/column_availability.csv
 
 split:
-  # Out-of-time. Set after inspecting the yearly volume table from step 6.
-  cutoff_date: null
+  # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:
+  # no calendar year lands in the 20-25% band D3 asks for (2017 onward is
+  # 16.8%, 2016 onward is 38.6%), so the cutoff sits inside 2016. 2016Q4 puts
+  # 282,970 resolved loans in the holdout, 21.0% of the population.
+  cutoff_date: 2016-10-01
   min_train_months: 24
 
 woe:
