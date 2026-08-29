@@ -96,14 +96,36 @@ quarter and everything after it in the holdout.
 The bad rate moves across the sample. That is why D5 measures stability
 with PSI by quarter rather than assuming the population holds still.
 
-## Columns (D2 worksheet)
+## Columns (D2 audit)
 
 All 151 columns are listed in
-[`column_profile.csv`](column_profile.csv) with an empty
-`availability` column. Filling it in is the leakage audit: each column
-is marked `app` if the value was known when the application was
-decided, `post` if it was generated afterwards, and `?` if it needs a
-decision. A whitelist built this way fails loudly on the columns nobody
-thought about; a blacklist fails silently.
+[`column_profile.csv`](column_profile.csv). The `availability` label
+comes from `config/column_availability.csv`, which is maintained by
+hand and never written by this script: `app` if the value was known
+when the application was decided, `post` if it was generated
+afterwards, `?` if it still needs a decision. A whitelist built this
+way fails loudly on the columns nobody thought about; a blacklist
+fails silently.
+
+| Label | Columns |
+|---|---:|
+| `app` | 103 |
+| `post` | 39 |
+| `?` | 9 |
+| *unlabelled* | 0 |
+
+Columns still marked `?`, each with the reason it is open:
+
+| Column | Why it is open |
+|---|---|
+| `id` | Identifier. Available, but never a feature. Recommend: keep for joins, exclude from the model matrix. |
+| `member_id` | Measured 100% null across all 2,260,668 rows. Recommend: drop. |
+| `funded_amnt_inv` | The amount investors actually funded, settled during the listing period and so after the credit decision. Measured 93.3% identical to loan_amnt (r=0.9990). Recommend: drop, redundant as well as late. |
+| `issue_d` | The origination date, so trivially available, but it is the out-of-time split key. Recommend: keep for splitting and PSI, exclude as a feature. |
+| `url` | A link to the listing page. An identifier with no credit meaning. Recommend: drop. |
+| `zip_code` | First three digits of the postcode, 956 distinct values. A neighbourhood proxy and a redlining exposure in a regulated lender. Recommend: exclude unless legally signed off; addr_state carries most of the geography. |
+| `initial_list_status` | Whole vs fractional listing. A marketplace mechanic, not a borrower attribute. Recommend: exclude. |
+| `policy_code` | Measured constant at 1.0 across all 2,260,668 rows, zero variance. Recommend: drop. |
+| `disbursement_method` | Cash vs direct-pay. Set at origination but operational rather than a credit attribute. Recommend: exclude, or carry only as a control. |
 
 Nothing downstream may use a column until it carries a label.
