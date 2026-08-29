@@ -34,4 +34,4 @@ htmlcov/
 .vscode/
 Thumbs.db
 # Local-only notes. Not part of the public artefact.
-NOTES.local.md
+*.local.md
