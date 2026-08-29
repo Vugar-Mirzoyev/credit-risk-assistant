@@ -67,9 +67,11 @@ Every candidate feature must answer yes to one question:
 
 Fields such as `total_pymnt`, `recoveries`, `last_pymnt_amnt`, `out_prncp`,
 `total_rec_prncp`, `last_fico_range_*`, `settlement_*` and `hardship_*` are
-generated after origination. They encode the outcome. A model trained on them
-reaches an AUC near 0.98 and is worthless, because none of that information
-exists when a real decision has to be made.
+generated after origination. They encode the outcome. Measured on this extract,
+the same scorecard given those columns reaches an out-of-time AUC of 0.9991
+against 0.6789 for the clean one, and the boosted model reaches 0.9999. Both
+are worthless, because none of that information exists when a real decision has
+to be made.
 
 A blacklist fails silently on the columns nobody thought of. A whitelist fails
 loudly. The audit is therefore performed column by column against the observed
@@ -166,6 +168,7 @@ credit-risk-assistant/
 │   └── DESIGN.md             # this file
 ├── src/
 │   ├── config.py             # config.yaml -> typed dataclass
+│   ├── pipeline.py           # audit -> load -> target -> derive -> split -> bin
 │   ├── data/
 │   │   ├── load.py           # memory-controlled loading
 │   │   ├── target.py         # D1
@@ -181,14 +184,19 @@ credit-risk-assistant/
 │       ├── metrics.py        # D5: Gini, KS, AUC, calibration
 │       ├── stability.py      # PSI, CSI
 │       └── explain.py        # SHAP
-├── notebooks/
 ├── scripts/
-│   └── profile_data.py
-├── tests/
+│   ├── profile_data.py       # produces reports/01_profile.md
+│   └── train_models.py       # produces reports/model_validation.md
+├── tests/                    # one file per module
 │   ├── test_load.py
 │   ├── test_target.py
+│   ├── test_leakage.py
+│   ├── test_split.py
+│   ├── test_build.py
 │   ├── test_woe.py
-│   └── test_split.py
+│   ├── test_scorecard.py
+│   ├── test_challenger.py
+│   └── test_metrics.py
 └── reports/
     ├── 01_profile.md
     ├── column_profile.csv

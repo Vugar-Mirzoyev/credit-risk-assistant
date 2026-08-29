@@ -22,7 +22,11 @@ Place `accepted_2007_to_2018Q4.csv` in `data/raw/`.
 
 ```powershell
 python scripts/profile_data.py
+python scripts/train_models.py
 ```
+
+The first writes `reports/01_profile.md` and the column audit worksheet; the
+second writes `reports/model_validation.md`.
 
 ## Tests
 
