@@ -75,6 +75,13 @@ challenger:
   # LightGBM is not reproducible across thread counts without this.
   deterministic: true
 
+explain:
+  # SHAP is exact but costs a pass over every tree for every row. The holdout
+  # is sampled rather than explained whole, and the sample size is reported so
+  # no figure derived from it is mistaken for a population number.
+  sample_rows: 20000
+  top_features: 20
+
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:
   # no calendar year lands in the 20-25% band D3 asks for (2017 onward is

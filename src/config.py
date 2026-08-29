@@ -68,6 +68,12 @@ class ChallengerConfig:
 
 
 @dataclass(frozen=True)
+class ExplainConfig:
+    sample_rows: int
+    top_features: int
+
+
+@dataclass(frozen=True)
 class SplitConfig:
     # None until the yearly volume table in reports/01_profile.md has been
     # inspected. D3 forbids guessing it.
@@ -108,6 +114,7 @@ class Config:
     profile: ProfileConfig
     leakage: LeakageConfig
     challenger: ChallengerConfig
+    explain: ExplainConfig
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
@@ -157,6 +164,10 @@ class Config:
                 n_estimators=int(raw["challenger"]["n_estimators"]),
                 early_stopping_rounds=int(raw["challenger"]["early_stopping_rounds"]),
                 deterministic=bool(raw["challenger"]["deterministic"]),
+            ),
+            explain=ExplainConfig(
+                sample_rows=int(raw["explain"]["sample_rows"]),
+                top_features=int(raw["explain"]["top_features"]),
             ),
             split=SplitConfig(
                 cutoff_date=raw["split"]["cutoff_date"],
