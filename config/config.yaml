@@ -24,6 +24,16 @@ target:
     - Default
   good_statuses:
     - Fully Paid
+  # Named rather than inferred. A status in none of these three lists raises,
+  # because an unrecognised outcome must be a decision, not a silent exclusion.
+  # "Issued" is listed in D1 and does not occur in this extract; it stays so
+  # the configuration matches the documented decision.
+  unresolved_statuses:
+    - Current
+    - Issued
+    - In Grace Period
+    - Late (16-30 days)
+    - Late (31-120 days)
   # Historic "Does not meet the credit policy" loans are a different population.
   include_policy_failures: false
 

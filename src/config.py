@@ -35,6 +35,7 @@ class DataConfig:
 class TargetConfig:
     bad_statuses: tuple[str, ...]
     good_statuses: tuple[str, ...]
+    unresolved_statuses: tuple[str, ...]
     include_policy_failures: bool
 
 
@@ -87,6 +88,7 @@ class Config:
             target=TargetConfig(
                 bad_statuses=tuple(raw["target"]["bad_statuses"]),
                 good_statuses=tuple(raw["target"]["good_statuses"]),
+                unresolved_statuses=tuple(raw["target"]["unresolved_statuses"]),
                 include_policy_failures=bool(raw["target"]["include_policy_failures"]),
             ),
             split=SplitConfig(
