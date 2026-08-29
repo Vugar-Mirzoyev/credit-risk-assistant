@@ -96,8 +96,10 @@ resolved loans in the holdout window.
 - **Champion:** logistic regression scorecard over WOE-transformed features.
   Every coefficient is inspectable and the score decomposes into contributions
   that can be shown to an applicant or a reviewer.
-- **Challenger:** gradient boosting. Stronger discrimination, opaque, requires
-  SHAP to be explained at all.
+- **Challenger:** gradient boosting, LightGBM. Stronger discrimination, opaque,
+  requires SHAP to be explained at all. LightGBM over the alternatives because
+  it supports monotonic constraints, which allows the challenger to be held to
+  the same directional logic the scorecard enforces by construction.
 
 The goal is not to crown a winner. It is to **quantify what interpretability
 costs** in Gini points. In a regulated lending context, a model that cannot be
