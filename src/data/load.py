@@ -290,7 +290,10 @@ def load_frame(
         max_unparsable_rows=max_unparsable_rows,
     )
     chunks = list(stream)
-    frame = pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame()
+    if not chunks:
+        return pd.DataFrame(), stream.report
+    frame = pd.concat(chunks, ignore_index=True)
+    apply_declared_categories(frame, date_column)
     return frame, stream.report
 
 
@@ -339,13 +342,25 @@ def _clean_chunk(chunk: pd.DataFrame, date_column: str) -> tuple[pd.DataFrame, i
             chunk[date_column], format="%b-%Y", errors="coerce"
         )
 
-    intended = dtype_map(chunk.columns)
-    for column, dtype in intended.items():
-        if dtype == "category" and column != date_column:
-            chunk[column] = chunk[column].astype("category")
+    apply_declared_categories(chunk, date_column)
 
     _assert_float32_lossless(chunk)
     return chunk, dropped
+
+
+def apply_declared_categories(frame: pd.DataFrame, date_column: str) -> pd.DataFrame:
+    """Cast the planned categorical columns, in place.
+
+    Called once per chunk and again after concatenation. The second call is not
+    redundant: `pd.concat` of categoricals whose category sets differ between
+    chunks falls back to plain strings, silently. A column declared categorical
+    would then arrive as `str`, which costs the memory the declaration was for
+    and is rejected outright by LightGBM.
+    """
+    for column, dtype in dtype_map(frame.columns).items():
+        if dtype == "category" and column != date_column:
+            frame[column] = frame[column].astype("category")
+    return frame
 
 
 def _assert_float32_lossless(chunk: pd.DataFrame) -> None:

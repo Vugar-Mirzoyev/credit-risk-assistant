@@ -102,6 +102,25 @@ def test_declared_dtypes_are_applied(tmp_path):
     assert isinstance(frame["grade"].dtype, pd.CategoricalDtype)
 
 
+def test_a_category_absent_from_the_first_chunk_survives_concatenation(tmp_path):
+    # pd.concat of categoricals whose category sets differ falls back to plain
+    # strings, silently. The column would then arrive as str, costing the
+    # memory the declaration was for, and LightGBM refuses it outright.
+    body = HEADER + (
+        "1,10000.0,60000.0,A,Dec-2015,Fully Paid\n"
+        "2,10000.0,60000.0,A,Dec-2015,Fully Paid\n"
+        "3,10000.0,60000.0,G,Dec-2015,Fully Paid\n"
+    )
+    path = _write(tmp_path, body)
+
+    frame, _ = load.load_frame(
+        path, columns=["id", "grade"], chunksize=2, date_column="issue_d"
+    )
+
+    assert isinstance(frame["grade"].dtype, pd.CategoricalDtype)
+    assert set(frame["grade"].cat.categories) == {"A", "G"}
+
+
 def test_value_above_the_float32_integer_limit_raises(tmp_path):
     # 2**24 + 1 is the first integer float32 cannot represent exactly. A column
     # left on float32 that reaches it must stop the run, not round silently.
