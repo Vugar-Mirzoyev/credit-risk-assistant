@@ -13,7 +13,12 @@ A two-layer credit risk system built on public LendingClub loan data.
 |---|---|---|
 | 1 | **Scoring** | Probability-of-default model with leakage auditing, out-of-time validation, and population stability monitoring |
 | 2 | **Knowledge** | Retrieval-augmented assistant over credit policy documents |
-| 3 | **Evaluation** | Model validation report and retrieval quality measurement |
+
+Validation and documentation are not a third layer. They are written *about*
+the system, not built into it: the model validation report and the retrieval
+quality measurement are outputs of layers 1 and 2, and they land in `reports/`.
+Counting reporting as architecture would inflate the design, and a careful
+reader would notice.
 
 The methodology is the deliverable, not the leaderboard number. A model with a
 moderate Gini and a rigorous validation trail is more useful than a stronger
