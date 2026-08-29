@@ -53,6 +53,21 @@ class LeakageConfig:
 
 
 @dataclass(frozen=True)
+class ChallengerConfig:
+    validation_months: int
+    learning_rate: float
+    num_leaves: int
+    min_child_samples: int
+    subsample: float
+    subsample_freq: int
+    colsample_bytree: float
+    reg_lambda: float
+    n_estimators: int
+    early_stopping_rounds: int
+    deterministic: bool
+
+
+@dataclass(frozen=True)
 class SplitConfig:
     # None until the yearly volume table in reports/01_profile.md has been
     # inspected. D3 forbids guessing it.
@@ -92,6 +107,7 @@ class Config:
     target: TargetConfig
     profile: ProfileConfig
     leakage: LeakageConfig
+    challenger: ChallengerConfig
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
@@ -128,6 +144,19 @@ class Config:
             ),
             leakage=LeakageConfig(
                 audit_path=_resolve(raw["leakage"]["audit_path"]),
+            ),
+            challenger=ChallengerConfig(
+                validation_months=int(raw["challenger"]["validation_months"]),
+                learning_rate=float(raw["challenger"]["learning_rate"]),
+                num_leaves=int(raw["challenger"]["num_leaves"]),
+                min_child_samples=int(raw["challenger"]["min_child_samples"]),
+                subsample=float(raw["challenger"]["subsample"]),
+                subsample_freq=int(raw["challenger"]["subsample_freq"]),
+                colsample_bytree=float(raw["challenger"]["colsample_bytree"]),
+                reg_lambda=float(raw["challenger"]["reg_lambda"]),
+                n_estimators=int(raw["challenger"]["n_estimators"]),
+                early_stopping_rounds=int(raw["challenger"]["early_stopping_rounds"]),
+                deterministic=bool(raw["challenger"]["deterministic"]),
             ),
             split=SplitConfig(
                 cutoff_date=raw["split"]["cutoff_date"],

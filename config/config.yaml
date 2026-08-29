@@ -56,6 +56,25 @@ leakage:
   # temporal.
   audit_path: config/column_availability.csv
 
+challenger:
+  # The last months of the training window become the early-stopping set. The
+  # holdout must not influence the fit at all, and choosing the number of trees
+  # against it would do exactly that.
+  validation_months: 6
+  learning_rate: 0.05
+  num_leaves: 31
+  # Large, because a million rows can support leaves that are still stable.
+  min_child_samples: 200
+  subsample: 0.8
+  subsample_freq: 1
+  colsample_bytree: 0.8
+  reg_lambda: 1.0
+  # An upper bound; early stopping picks the actual number.
+  n_estimators: 2000
+  early_stopping_rounds: 50
+  # LightGBM is not reproducible across thread counts without this.
+  deterministic: true
+
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:
   # no calendar year lands in the 20-25% band D3 asks for (2017 onward is
