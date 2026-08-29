@@ -47,6 +47,10 @@ it as good depresses the observed bad rate and inflates every metric computed
 downstream. This is the single most common error in public analyses of this
 dataset, and it is invisible unless the status distribution is inspected.
 
+Measured on the full extract: 912,569 loans are unresolved, 40.4% of the file.
+Counting them as good moves the observed bad rate from 19.97% to 11.90%, an
+understatement of eight points before a single feature has been built.
+
 Loans carrying the prefix `Does not meet the credit policy. Status:` were
 originated under a different underwriting regime. They are a separate
 population and are excluded by default rather than pooled in as extra volume.
@@ -108,8 +112,9 @@ that trade-off is the real result.
 
 ### D5 — Accuracy is not used
 
-With a bad rate near 15%, predicting "good" for every applicant scores 85%.
-Accuracy is banned from this repository.
+The resolved population carries a bad rate of 19.97%, which is 268,599 bad
+loans against 1,345,350 resolved ones. Predicting "good" for every applicant
+therefore scores 80.03%. Accuracy is banned from this repository.
 
 Discrimination is measured with **Gini, KS and AUC**. Calibration is measured
 separately, because a model can rank well and still produce probabilities that
@@ -125,7 +130,8 @@ Stability is measured with **PSI across quarters** rather than assumed.
 ```
 credit-risk-assistant/
 ├── README.md
-├── requirements.txt
+├── requirements.txt          # pinned to the versions results were produced on
+├── pyproject.toml            # pytest configuration
 ├── setup.ps1                 # Windows scaffold
 ├── config/
 │   └── config.yaml           # every tunable number lives here
@@ -156,6 +162,7 @@ credit-risk-assistant/
 ├── scripts/
 │   └── profile_data.py
 ├── tests/
+│   ├── test_load.py
 │   ├── test_target.py
 │   ├── test_woe.py
 │   └── test_split.py
