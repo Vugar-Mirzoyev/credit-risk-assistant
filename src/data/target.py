@@ -192,13 +192,16 @@ def build_target(
         config=config,
     )
 
-    # Built in one operation rather than by inserting a column: on a wide
-    # frame the insertion fragments the block manager and pandas warns about
-    # it, which is noise in the output of a documented command.
-    out = frame.loc[resolved].drop(columns=[status_column]).assign(
-        **{TARGET_COLUMN: is_bad.loc[resolved].astype("int8").to_numpy()}
+    # Concatenated rather than assigned. On a frame this wide, adding a column
+    # by assignment fragments the block manager and pandas says so, which is
+    # noise in the output of a documented command; `assign` fragments it too.
+    kept = frame.loc[resolved].drop(columns=[status_column])
+    labels = pd.Series(
+        is_bad.loc[resolved].astype("int8").to_numpy(),
+        index=kept.index,
+        name=TARGET_COLUMN,
     )
-    return out, report
+    return pd.concat([kept, labels], axis=1), report
 
 
 def _count_statuses(status: pd.Series) -> dict[str, int]:
