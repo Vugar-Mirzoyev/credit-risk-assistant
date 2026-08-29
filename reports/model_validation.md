@@ -113,6 +113,105 @@ whitelist prevents.
 |        9 |   28297 |             0.0758 |             0.1072 |  2947 |     0.1041 |                 0.9728 |                  0.8797 | 0.4773 |
 |       10 |   28297 |             0.0139 |             0.0758 |  1679 |     0.0593 |                 1      |                  1      | 0.2719 |
 
+## Stability (D5)
+
+The champion's predicted PD, quarter by quarter, against its training
+distribution. Buckets are fixed on the training window: recomputing
+them per quarter would compare every window with itself and never
+report a shift.
+
+| quarter   |   rows |    psi | band   | floor_driven   |
+|:----------|-------:|-------:|:-------|:---------------|
+| 2016Q4    |  57331 | 0.0713 | stable | False          |
+| 2017Q1    |  46874 | 0.046  | stable | False          |
+| 2017Q2    |  44492 | 0.0522 | stable | False          |
+| 2017Q3    |  43854 | 0.0548 | stable | False          |
+| 2017Q4    |  34101 | 0.0235 | stable | False          |
+| 2018Q1    |  22530 | 0.0169 | stable | False          |
+| 2018Q2    |  18449 | 0.0201 | stable | False          |
+| 2018Q3    |  10309 | 0.0063 | stable | False          |
+| 2018Q4    |   5030 | 0.004  | stable | False          |
+
+Characteristic stability, the ten features that moved furthest. A
+stable score can hide two features drifting in opposite directions,
+so the inputs are measured as well as the output.
+
+`floor_driven` marks an index whose value comes mostly from buckets one
+window never reached. The band is still worth reading; the digits are
+not, because they depend on the floor rather than on the data. On this
+extract every flagged feature belongs to the bureau family LendingClub
+only began reporting in 2016, so the shift is a reporting change and
+not a change in borrowers - see the known limitations in docs/DESIGN.md.
+
+| feature      | kind    |     csi | band                 | floor_driven   |   buckets |
+|:-------------|:--------|--------:|:---------------------|:---------------|----------:|
+| inq_fi       | numeric | 10.9572 | shifted, investigate | True           |         5 |
+| max_bal_bc   | numeric | 10.9524 | shifted, investigate | True           |        11 |
+| open_il_24m  | numeric | 10.9519 | shifted, investigate | True           |         6 |
+| open_rv_24m  | numeric | 10.9499 | shifted, investigate | True           |         8 |
+| total_cu_tl  | numeric | 10.9495 | shifted, investigate | True           |         6 |
+| open_rv_12m  | numeric | 10.9493 | shifted, investigate | True           |         5 |
+| total_bal_il | numeric | 10.949  | shifted, investigate | True           |        10 |
+| open_act_il  | numeric | 10.9489 | shifted, investigate | True           |         7 |
+| open_il_12m  | numeric | 10.9488 | shifted, investigate | True           |         4 |
+| inq_last_12m | numeric | 10.9488 | shifted, investigate | True           |         7 |
+
+## Explaining the challenger (SHAP)
+
+The champion needs none of this: its points table already says what
+each attribute contributed. The challenger has no coefficients, so its
+output is attributed to the features additively instead.
+
+```
+rows sampled            20,000 of 282,970
+base value (log-odds)   -1.7246
+features attributed     97
+max additivity error    1.55e-14
+```
+
+| feature               |   mean_abs_shap |   mean_shap |   share |
+|:----------------------|----------------:|------------:|--------:|
+| term                  |        0.434615 |   -0.008438 |  0.1323 |
+| fico_range_low        |        0.191091 |   -0.030639 |  0.0582 |
+| payment_to_income     |        0.1856   |   -0.008282 |  0.0565 |
+| dti                   |        0.152481 |   -6.1e-05  |  0.0464 |
+| acc_open_past_24mths  |        0.1453   |    0.031692 |  0.0442 |
+| installment           |        0.121982 |   -0.006926 |  0.0371 |
+| addr_state            |        0.101759 |   -0.002815 |  0.031  |
+| home_ownership        |        0.095583 |   -0.010106 |  0.0291 |
+| mo_sin_old_rev_tl_op  |        0.072008 |    0.012791 |  0.0219 |
+| percent_bc_gt_75      |        0.071433 |   -0.026029 |  0.0217 |
+| total_bc_limit        |        0.070241 |   -0.00298  |  0.0214 |
+| purpose               |        0.066447 |    0.015074 |  0.0202 |
+| num_tl_op_past_12m    |        0.064864 |    0.006919 |  0.0197 |
+| mths_since_recent_inq |        0.064104 |    0.008442 |  0.0195 |
+| mths_since_recent_bc  |        0.06065  |    0.003884 |  0.0185 |
+| loan_amnt             |        0.058823 |    0.01123  |  0.0179 |
+| tot_hi_cred_lim       |        0.056918 |   -0.001612 |  0.0173 |
+| emp_length_years      |        0.052509 |    0.011531 |  0.016  |
+| total_rev_hi_lim      |        0.045505 |   -0.006237 |  0.0139 |
+| all_util              |        0.045403 |    0.033887 |  0.0138 |
+
+Where the two models disagree about what matters:
+
+| feature               |   points_spread |   champion_rank |   mean_abs_shap |   challenger_rank |   rank_gap |
+|:----------------------|----------------:|----------------:|----------------:|------------------:|-----------:|
+| term                  |           27.35 |               1 |        0.434615 |                 1 |          0 |
+| fico_range_low        |           27.14 |               2 |        0.191091 |                 2 |          0 |
+| payment_to_income     |          nan    |             nan |        0.1856   |                 3 |        nan |
+| dti                   |           12.72 |               7 |        0.152481 |                 4 |          3 |
+| acc_open_past_24mths  |           15.6  |               5 |        0.1453   |                 5 |          0 |
+| installment           |          nan    |             nan |        0.121982 |                 6 |        nan |
+| addr_state            |          nan    |             nan |        0.101759 |                 7 |        nan |
+| home_ownership        |            8.12 |               9 |        0.095583 |                 8 |          1 |
+| mo_sin_old_rev_tl_op  |            3.26 |              19 |        0.072008 |                 9 |         10 |
+| percent_bc_gt_75      |          nan    |             nan |        0.071433 |                10 |        nan |
+| total_bc_limit        |          nan    |             nan |        0.070241 |                11 |        nan |
+| purpose               |           17.17 |               3 |        0.066447 |                12 |          9 |
+| num_tl_op_past_12m    |            3.92 |              15 |        0.064864 |                13 |          2 |
+| mths_since_recent_inq |            0.07 |              23 |        0.064104 |                14 |          9 |
+| mths_since_recent_bc  |            3.92 |              15 |        0.06065  |                15 |          0 |
+
 ## Champion scorecard
 
 ```

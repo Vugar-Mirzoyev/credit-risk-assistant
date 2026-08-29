@@ -250,3 +250,14 @@ model scores.
 - The dataset ends in 2018. Nothing here claims current-market validity.
 - Bad rate and macroeconomic conditions shift across the sample period, which
   is exactly why stability is measured rather than assumed.
+- A family of bureau fields - `open_il_*`, `open_rv_*`, `inq_fi`, `max_bal_bc`,
+  `total_cu_tl`, `inq_last_12m` and their neighbours - is **100% null from 2007
+  to 2014, 95% null in 2015 and 0% null from 2016 onward**. LendingClub began
+  reporting them partway through the sample. They therefore barely exist in the
+  training window and always exist in the holdout, and the characteristic
+  stability index flags every one of them. The shift is real but it is a
+  reporting change rather than a change in borrowers, and it is the reason the
+  stability report distinguishes an index driven by empty buckets from one
+  driven by the distributions. WOE keeps them usable by giving missingness its
+  own bin; a model that leant on them heavily would still be resting on a field
+  that did not exist for most of its training data.
