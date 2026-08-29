@@ -46,6 +46,9 @@ profile:
   report_path: reports/01_profile.md
   column_csv_path: reports/column_profile.csv
   figure_path: reports/figures/01_volume_by_quarter.png
+  # The D2 audit. Hand-maintained, never written by the profiling script, so a
+  # rerun cannot destroy the labelling.
+  availability_path: config/column_availability.csv
 
 split:
   # Out-of-time. Set after inspecting the yearly volume table from step 6.
