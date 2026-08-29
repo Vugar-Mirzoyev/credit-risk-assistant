@@ -88,3 +88,15 @@ woe:
 
 model:
   random_state: 42
+  # Pairwise correlation ceiling on WOE columns. Above it the higher-IV feature
+  # is kept and the other dropped: collinear inputs make scorecard coefficients
+  # unstable and sometimes wrong-signed, which destroys the one property the
+  # champion exists for.
+  max_correlation: 0.75
+  max_iter: 200
+  scorecard:
+    # Standard points scaling. A score of base_score corresponds to base_odds
+    # good-to-bad, and every pdo points doubles the odds.
+    base_score: 600
+    base_odds: 50
+    pdo: 20

@@ -72,8 +72,18 @@ class WoeConfig:
 
 
 @dataclass(frozen=True)
+class ScorecardConfig:
+    base_score: float
+    base_odds: float
+    pdo: float
+
+
+@dataclass(frozen=True)
 class ModelConfig:
     random_state: int
+    max_correlation: float
+    max_iter: int
+    scorecard: ScorecardConfig
 
 
 @dataclass(frozen=True)
@@ -132,7 +142,16 @@ class Config:
                 min_iv=float(raw["woe"]["min_iv"]),
                 suspicious_iv=float(raw["woe"]["suspicious_iv"]),
             ),
-            model=ModelConfig(random_state=int(raw["model"]["random_state"])),
+            model=ModelConfig(
+                random_state=int(raw["model"]["random_state"]),
+                max_correlation=float(raw["model"]["max_correlation"]),
+                max_iter=int(raw["model"]["max_iter"]),
+                scorecard=ScorecardConfig(
+                    base_score=float(raw["model"]["scorecard"]["base_score"]),
+                    base_odds=float(raw["model"]["scorecard"]["base_odds"]),
+                    pdo=float(raw["model"]["scorecard"]["pdo"]),
+                ),
+            ),
         )
 
 
