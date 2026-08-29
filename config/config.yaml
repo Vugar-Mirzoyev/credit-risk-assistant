@@ -37,6 +37,16 @@ target:
   # Historic "Does not meet the credit policy" loans are a different population.
   include_policy_failures: false
 
+profile:
+  # Distinct values are counted exactly up to this ceiling, then reported as a
+  # floor (">= n"). url holds one distinct value per loan and emp_title
+  # hundreds of thousands; counting those exactly would cost more memory than
+  # the load this module exists to bound.
+  max_distinct_tracked: 10000
+  report_path: reports/01_profile.md
+  column_csv_path: reports/column_profile.csv
+  figure_path: reports/figures/01_volume_by_quarter.png
+
 split:
   # Out-of-time. Set after inspecting the yearly volume table from step 6.
   cutoff_date: null

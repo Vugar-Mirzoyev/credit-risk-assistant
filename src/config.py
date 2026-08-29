@@ -40,6 +40,14 @@ class TargetConfig:
 
 
 @dataclass(frozen=True)
+class ProfileConfig:
+    max_distinct_tracked: int
+    report_path: Path
+    column_csv_path: Path
+    figure_path: Path
+
+
+@dataclass(frozen=True)
 class SplitConfig:
     # None until the yearly volume table in reports/01_profile.md has been
     # inspected. D3 forbids guessing it.
@@ -63,6 +71,7 @@ class ModelConfig:
 class Config:
     data: DataConfig
     target: TargetConfig
+    profile: ProfileConfig
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
@@ -90,6 +99,12 @@ class Config:
                 good_statuses=tuple(raw["target"]["good_statuses"]),
                 unresolved_statuses=tuple(raw["target"]["unresolved_statuses"]),
                 include_policy_failures=bool(raw["target"]["include_policy_failures"]),
+            ),
+            profile=ProfileConfig(
+                max_distinct_tracked=int(raw["profile"]["max_distinct_tracked"]),
+                report_path=_resolve(raw["profile"]["report_path"]),
+                column_csv_path=_resolve(raw["profile"]["column_csv_path"]),
+                figure_path=_resolve(raw["profile"]["figure_path"]),
             ),
             split=SplitConfig(
                 cutoff_date=raw["split"]["cutoff_date"],
