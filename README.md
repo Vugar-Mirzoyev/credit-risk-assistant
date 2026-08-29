@@ -1,0 +1,25 @@
+# Credit Risk Assistant
+
+A two-layer system for consumer credit risk:
+
+1. **Scoring** - a probability-of-default model on LendingClub loan data, with
+   leakage auditing, out-of-time validation and population stability monitoring.
+2. **Knowledge** - a retrieval-augmented assistant over credit policy documents.
+
+Status: layer 1 in progress.
+
+## Setup
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Place `accepted_2007_to_2018Q4.csv` in `data/raw/`.
+
+## Reproduce
+
+```powershell
+python scripts/profile_data.py
+```

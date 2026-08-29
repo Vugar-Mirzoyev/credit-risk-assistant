@@ -1,0 +1,37 @@
+# Data - never commit. Raw LendingClub is ~1.6 GB.
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+# Model artefacts
+*.joblib
+*.pkl
+*.onnx
+
+# Vector stores (layer 2)
+.chroma/
+*.faiss
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+# Local-only notes. Not part of the public artefact.
+NOTES.local.md

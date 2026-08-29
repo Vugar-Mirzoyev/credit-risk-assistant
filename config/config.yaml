@@ -1,0 +1,31 @@
+# Single source of truth. Nothing that affects a number lives outside this file.
+
+data:
+  raw_path: data/raw/accepted_2007_to_2018Q4.csv
+  interim_path: data/interim/modelling_base.parquet
+  status_column: loan_status
+  date_column: issue_d
+
+target:
+  # Resolved outcomes only. Unresolved loans are neither good nor bad and are
+  # excluded rather than silently counted as good.
+  bad_statuses:
+    - Charged Off
+    - Default
+  good_statuses:
+    - Fully Paid
+  # Historic "Does not meet the credit policy" loans are a different population.
+  include_policy_failures: false
+
+split:
+  # Out-of-time. Set after inspecting the yearly volume table from step 6.
+  cutoff_date: null
+  min_train_months: 24
+
+woe:
+  max_bins: 10
+  min_bin_fraction: 0.05
+  min_iv: 0.02
+
+model:
+  random_state: 42
