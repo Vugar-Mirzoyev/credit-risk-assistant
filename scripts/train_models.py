@@ -1,0 +1,231 @@
+"""Fit the models and write the validation report.
+
+    python scripts/train_models.py
+
+Six models, because each pair answers a question a single headline number
+cannot:
+
+============================  =============================================
+champion, no grade            the deployable scorecard
+champion, with grade          what LendingClub's own risk opinion adds
+challenger, raw               the ceiling a black box reaches
+challenger, WOE               the same comparison with inputs held constant,
+                              which isolates model class from binning
+leaky champion                D2's deliverable: the same scorecard given the
+leaky challenger              post-origination columns, so the gap between
+                              leaky and clean is measured rather than asserted
+============================  =============================================
+
+The leaky pair is fitted deliberately and reported, never deployed. Its point
+is that it looks excellent. A reviewer who has only seen the clean numbers has
+no way to judge whether they are good; seeing both is what makes the audit
+worth anything.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import pandas as pd
+
+from src.config import Config
+from src.evaluation.metrics import calibration, discrimination, gains_table
+from src.features.woe import WOE_PREFIX
+from src.models.challenger import fit_challenger
+from src.models.scorecard import GRADE_FAMILY, fit_scorecard, without_grade_family
+from src.pipeline import Dataset, prepare, prepare_leaky
+
+
+def _row(name: str, kind: str, features: int, y_train, p_train, y_test, p_test):
+    train = discrimination(y_train, p_train)
+    test = discrimination(y_test, p_test)
+    fit = calibration(y_test, p_test)
+    return {
+        "model": name,
+        "kind": kind,
+        "features": features,
+        "train_gini": round(train.gini, 4),
+        "test_gini": round(test.gini, 4),
+        "test_auc": round(test.auc, 4),
+        "test_ks": round(test.ks, 4),
+        "brier": round(fit.brier, 4),
+        "level_error": round(fit.calibration_in_the_large, 4),
+        "calib_slope": round(fit.slope, 4),
+    }
+
+
+def evaluate_all(data: Dataset, config: Config) -> tuple[pd.DataFrame, dict]:
+    y_train, y_test = data.y_train, data.y_test
+    rows: list[dict] = []
+    artefacts: dict[str, object] = {}
+
+    clean = list(data.binner.selected_columns)
+    for name, features in (
+        ("champion, with grade", clean),
+        ("champion, no grade", list(without_grade_family(clean))),
+    ):
+        card, report = fit_scorecard(
+            data.woe_train, y_train, data.binner, config.model,
+            features=features, name=name,
+        )
+        rows.append(
+            _row(name, "scorecard", len(card.features), y_train,
+                 card.predict_proba(data.woe_train), y_test,
+                 card.predict_proba(data.woe_test))
+        )
+        artefacts[name] = (card, report)
+
+    raw = [c for c in data.features if c not in GRADE_FAMILY]
+    boosted, boosted_report = fit_challenger(
+        data.train, y_train, features=raw, date_column=data.date_column,
+        config=config.challenger, model_config=config.model,
+        name="challenger, raw",
+    )
+    rows.append(
+        _row("challenger, raw", "boosted", len(raw), y_train,
+             boosted.predict_proba(data.train), y_test,
+             boosted.predict_proba(data.test))
+    )
+    artefacts["challenger, raw"] = (boosted, boosted_report)
+
+    champion_columns = artefacts["champion, no grade"][0].features
+    woe_columns = [WOE_PREFIX + f for f in champion_columns]
+    woe_train_dated = data.woe_train.assign(
+        **{data.date_column: data.train[data.date_column].to_numpy()}
+    )
+    boosted_woe, _ = fit_challenger(
+        woe_train_dated, y_train, features=woe_columns,
+        date_column=data.date_column, config=config.challenger,
+        model_config=config.model, name="challenger, woe",
+    )
+    rows.append(
+        _row("challenger, woe", "boosted", len(woe_columns), y_train,
+             boosted_woe.predict_proba(data.woe_train), y_test,
+             boosted_woe.predict_proba(data.woe_test))
+    )
+
+    artefacts["gains"] = gains_table(
+        y_test, artefacts["champion, no grade"][0].predict_proba(data.woe_test)
+    )
+    artefacts["calibration"] = calibration(
+        y_test, artefacts["champion, no grade"][0].predict_proba(data.woe_test)
+    )
+    return pd.DataFrame(rows), artefacts
+
+
+def evaluate_leaky(config: Config) -> pd.DataFrame:
+    """D2's deliverable: the same models, handed the outcome columns.
+
+    Loaded separately from the clean path, because the clean path never reads
+    a post-origination column at all. That is the point of it.
+    """
+    data = prepare_leaky(config)
+    features = [c for c in data.features if c not in GRADE_FAMILY]
+
+    card, _ = fit_scorecard(
+        data.woe_train, data.y_train, data.binner, config.model,
+        name="leaky scorecard",
+    )
+    rows = [
+        _row("leaky scorecard", "scorecard", len(card.features), data.y_train,
+             card.predict_proba(data.woe_train), data.y_test,
+             card.predict_proba(data.woe_test))
+    ]
+
+    boosted, _ = fit_challenger(
+        data.train, data.y_train, features=features,
+        date_column=data.date_column, config=config.challenger,
+        model_config=config.model, name="leaky challenger",
+    )
+    rows.append(
+        _row("leaky challenger", "boosted", len(features), data.y_train,
+             boosted.predict_proba(data.train), data.y_test,
+             boosted.predict_proba(data.test))
+    )
+    return pd.DataFrame(rows)
+
+
+def write_report(
+    data_summary: str,
+    clean: pd.DataFrame,
+    leaky: pd.DataFrame,
+    artefacts: dict,
+    path: Path,
+) -> None:
+    card, card_report = artefacts["champion, no grade"]
+    calib = artefacts["calibration"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Model validation",
+        "",
+        "Generated by `python scripts/train_models.py`. Every figure here is",
+        "measured on the out-of-time holdout unless the column says otherwise.",
+        "",
+        "## Data path",
+        "",
+        "```",
+        data_summary,
+        "```",
+        "",
+        "## Discrimination and calibration (D4, D5)",
+        "",
+        clean.to_markdown(index=False),
+        "",
+        "## Leaky against clean (D2)",
+        "",
+        "The models below are fitted on the post-origination columns the audit",
+        "excludes. They are never deployed and exist only to be compared: the",
+        "gap between them and the clean models is the size of the mistake the",
+        "whitelist prevents.",
+        "",
+        leaky.to_markdown(index=False),
+        "",
+        "## Champion calibration by band",
+        "",
+        calib.to_markdown(),
+        "",
+        "## Champion rank ordering",
+        "",
+        artefacts["gains"].round(4).to_markdown(index=False),
+        "",
+        "## Champion scorecard",
+        "",
+        "```",
+        card_report.summary(),
+        "```",
+        "",
+        card.points_table().to_markdown(index=False),
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def main() -> None:
+    config = Config.load()
+    data = prepare(config)
+
+    print("\nfitting clean models")
+    clean, artefacts = evaluate_all(data, config)
+    data_summary = data.summary()
+    # Freed before the leaky path loads its own, wider frame. Holding both at
+    # once is unnecessary, and this extract is large enough already.
+    del data
+
+    print("\nfitting the leaky comparison")
+    leaky = evaluate_leaky(config)
+
+    report_path = PROJECT_ROOT / "reports" / "model_validation.md"
+    write_report(data_summary, clean, leaky, artefacts, report_path)
+    print(f"\nwrote {report_path}\n")
+    print(clean.to_string(index=False))
+    print()
+    print(leaky.to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
