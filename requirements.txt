@@ -1,0 +1,23 @@
+# Layer 1 - scoring.
+#
+# Pinned to the resolved versions this project was developed and run against.
+# Every figure in reports/ is reproducible from a clean environment built from
+# this file. Python 3.13.
+
+# Core
+numpy==2.5.2
+pandas==3.0.5
+scipy==1.18.1
+pyarrow==25.0.1        # parquet for intermediate data, see docs/DESIGN.md 4
+
+# Modelling
+scikit-learn==1.9.0    # D4 champion: logistic regression over WOE features
+lightgbm==4.7.0        # D4 challenger: gradient boosting
+shap==0.52.0           # the challenger cannot be explained without it
+
+# Configuration and reporting
+pyyaml==6.0.3
+matplotlib==3.11.1
+
+# Tests
+pytest==9.1.1
