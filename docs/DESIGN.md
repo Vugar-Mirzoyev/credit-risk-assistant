@@ -48,7 +48,7 @@ downstream. This is the single most common error in public analyses of this
 dataset, and it is invisible unless the status distribution is inspected.
 
 Measured on the full extract: 912,569 loans are unresolved, 40.4% of the file.
-Counting them as good moves the observed bad rate from 19.97% to 11.90%, an
+Counting them as good moves the observed bad rate from 19.96% to 11.90%, an
 understatement of eight points before a single feature has been built.
 
 Loans carrying the prefix `Does not meet the credit policy. Status:` were
@@ -112,9 +112,9 @@ that trade-off is the real result.
 
 ### D5 — Accuracy is not used
 
-The resolved population carries a bad rate of 19.97%, which is 268,599 bad
+The resolved population carries a bad rate of 19.96%, which is 268,599 bad
 loans against 1,345,350 resolved ones. Predicting "good" for every applicant
-therefore scores 80.03%. Accuracy is banned from this repository.
+therefore scores 80.04%. Accuracy is banned from this repository.
 
 Discrimination is measured with **Gini, KS and AUC**. Calibration is measured
 separately, because a model can rank well and still produce probabilities that
