@@ -65,9 +65,26 @@ split:
   min_train_months: 24
 
 woe:
+  # Fine quantile bins to start from, before merging. Higher gives the merge
+  # more freedom; it does not change the result once the merge rules bite.
+  pre_bins: 20
   max_bins: 10
+  # Every numeric bin must hold at least this share of the fitting rows, so a
+  # cut-point is never drawn from a handful of observations.
   min_bin_fraction: 0.05
+  # Categories are discrete and meaningful, so they need far less mass than a
+  # numeric cut-point. At 0.05 the 51 states of addr_state would nearly all
+  # merge away.
+  min_category_fraction: 0.01
+  # Merge adjacent bins until WOE is monotone. A non-monotone risk ordering is
+  # usually a sampling artefact and cannot be defended to a reviewer.
+  enforce_monotonic: true
+  # Below this a feature carries nothing and is dropped.
   min_iv: 0.02
+  # Above this a feature is reported as suspicious, not dropped. Conventionally
+  # IV > 0.5 is "too good"; after a leakage audit it is a signal the audit
+  # missed something rather than a cause for celebration.
+  suspicious_iv: 0.5
 
 model:
   random_state: 42

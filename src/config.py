@@ -62,9 +62,13 @@ class SplitConfig:
 
 @dataclass(frozen=True)
 class WoeConfig:
+    pre_bins: int
     max_bins: int
     min_bin_fraction: float
+    min_category_fraction: float
+    enforce_monotonic: bool
     min_iv: float
+    suspicious_iv: float
 
 
 @dataclass(frozen=True)
@@ -120,9 +124,13 @@ class Config:
                 min_train_months=int(raw["split"]["min_train_months"]),
             ),
             woe=WoeConfig(
+                pre_bins=int(raw["woe"]["pre_bins"]),
                 max_bins=int(raw["woe"]["max_bins"]),
                 min_bin_fraction=float(raw["woe"]["min_bin_fraction"]),
+                min_category_fraction=float(raw["woe"]["min_category_fraction"]),
+                enforce_monotonic=bool(raw["woe"]["enforce_monotonic"]),
                 min_iv=float(raw["woe"]["min_iv"]),
+                suspicious_iv=float(raw["woe"]["suspicious_iv"]),
             ),
             model=ModelConfig(random_state=int(raw["model"]["random_state"])),
         )
