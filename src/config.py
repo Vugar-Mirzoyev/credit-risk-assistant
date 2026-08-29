@@ -45,7 +45,11 @@ class ProfileConfig:
     report_path: Path
     column_csv_path: Path
     figure_path: Path
-    availability_path: Path
+
+
+@dataclass(frozen=True)
+class LeakageConfig:
+    audit_path: Path
 
 
 @dataclass(frozen=True)
@@ -73,6 +77,7 @@ class Config:
     data: DataConfig
     target: TargetConfig
     profile: ProfileConfig
+    leakage: LeakageConfig
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
@@ -106,7 +111,9 @@ class Config:
                 report_path=_resolve(raw["profile"]["report_path"]),
                 column_csv_path=_resolve(raw["profile"]["column_csv_path"]),
                 figure_path=_resolve(raw["profile"]["figure_path"]),
-                availability_path=_resolve(raw["profile"]["availability_path"]),
+            ),
+            leakage=LeakageConfig(
+                audit_path=_resolve(raw["leakage"]["audit_path"]),
             ),
             split=SplitConfig(
                 cutoff_date=raw["split"]["cutoff_date"],

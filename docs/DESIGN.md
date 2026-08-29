@@ -73,7 +73,24 @@ exists when a real decision has to be made.
 
 A blacklist fails silently on the columns nobody thought of. A whitelist fails
 loudly. The audit is therefore performed column by column against the observed
-data, and its result is committed as a reviewable artefact.
+data, and its result is committed as a reviewable artefact,
+`config/column_availability.csv`. Every row carries a written reason, because a
+label nobody can justify is not an audit.
+
+The audit records two things per column, kept separate on purpose.
+**Availability** is a fact about the lending process: `app` or `post`, nothing
+else. **Role** is what the column is permitted to be used for: `feature`,
+`text`, `identifier`, `split_key`, `target` or `excluded`. Availability alone
+does not settle usability. `zip_code` was available and is excluded on
+redlining grounds; `id` was available and is an identifier; `issue_d` was
+available and is the split key, and as a feature it would let the model learn
+the calendar rather than the borrower. Forcing those into a single column would
+put a false answer in one of them.
+
+`src/data/leakage.py` enforces one invariant above the rest: **a column marked
+`post` can never carry the role `feature`.** It also refuses an audit with a
+missing label, a missing reason, a duplicate row, or a column the extract has
+gained or lost since the audit was written.
 
 The comparison between the leaky model and the clean model is a **deliverable,
 not a debugging step**. Both AUC figures appear in the validation report,

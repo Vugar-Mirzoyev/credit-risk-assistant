@@ -99,33 +99,29 @@ with PSI by quarter rather than assuming the population holds still.
 ## Columns (D2 audit)
 
 All 151 columns are listed in
-[`column_profile.csv`](column_profile.csv). The `availability` label
-comes from `config/column_availability.csv`, which is maintained by
-hand and never written by this script: `app` if the value was known
-when the application was decided, `post` if it was generated
-afterwards, `?` if it still needs a decision. A whitelist built this
-way fails loudly on the columns nobody thought about; a blacklist
-fails silently.
+[`column_profile.csv`](column_profile.csv), joined to the labels in
+`config/column_availability.csv`. That file is maintained by hand and
+never written by this script, so rerunning the profile cannot destroy
+the audit. A whitelist built this way fails loudly on the columns
+nobody thought about; a blacklist fails silently.
 
-| Label | Columns |
-|---|---:|
-| `app` | 103 |
-| `post` | 39 |
-| `?` | 9 |
-| *unlabelled* | 0 |
+| Availability | Columns | Meaning |
+|---|---:|---|
+| `app` | 111 | known when the application was decided |
+| `post` | 40 | generated after origination |
 
-Columns still marked `?`, each with the reason it is open:
+Availability is a fact about the lending process. What a column may
+be *used* for is a separate question, and collapsing the two would
+force a lie into one of them: `zip_code` is available and still
+excluded, on redlining grounds rather than temporal ones.
 
-| Column | Why it is open |
-|---|---|
-| `id` | Identifier. Available, but never a feature. Recommend: keep for joins, exclude from the model matrix. |
-| `member_id` | Measured 100% null across all 2,260,668 rows. Recommend: drop. |
-| `funded_amnt_inv` | The amount investors actually funded, settled during the listing period and so after the credit decision. Measured 93.3% identical to loan_amnt (r=0.9990). Recommend: drop, redundant as well as late. |
-| `issue_d` | The origination date, so trivially available, but it is the out-of-time split key. Recommend: keep for splitting and PSI, exclude as a feature. |
-| `url` | A link to the listing page. An identifier with no credit meaning. Recommend: drop. |
-| `zip_code` | First three digits of the postcode, 956 distinct values. A neighbourhood proxy and a redlining exposure in a regulated lender. Recommend: exclude unless legally signed off; addr_state carries most of the geography. |
-| `initial_list_status` | Whole vs fractional listing. A marketplace mechanic, not a borrower attribute. Recommend: exclude. |
-| `policy_code` | Measured constant at 1.0 across all 2,260,668 rows, zero variance. Recommend: drop. |
-| `disbursement_method` | Cash vs direct-pay. Set at origination but operational rather than a credit attribute. Recommend: exclude, or carry only as a control. |
+| Role | Columns | Meaning |
+|---|---:|---|
+| `feature` | 99 | offered to the model |
+| `text` | 3 | available free text, held back until something can extract from it |
+| `identifier` | 3 | row identity, never a feature |
+| `split_key` | 1 | the out-of-time axis (D3) |
+| `target` | 1 | the outcome (D1) |
+| `excluded` | 44 | not to be used; the audit records why |
 
 Nothing downstream may use a column until it carries a label.

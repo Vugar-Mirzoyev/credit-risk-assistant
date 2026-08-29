@@ -3,12 +3,11 @@
 Produces three artefacts, all reproducible from one command:
 
 ``reports/column_profile.csv``
-    One row per column, with the shape facts a reviewer needs to decide
-    whether the field existed when the application was decided. The last
-    column, ``availability``, is deliberately blank. It is the D2 audit
-    worksheet, and it is filled in by hand, because "was this known at
-    decision time?" is a question about the lending process and not one the
-    data can answer about itself.
+    One row per column: the shape facts a reviewer needs, joined to the D2
+    labels from ``config/column_availability.csv``. The labels are read, never
+    written, because "was this known at decision time?" is a question about
+    the lending process and not one the data can answer about itself - and
+    because a generated file must never be where hand-made decisions live.
 
 ``reports/01_profile.md``
     The narrative: load audit, D1 target audit, and the yearly table D3 needs
@@ -34,6 +33,7 @@ Run from anywhere::
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -52,6 +52,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.config import Config
+from src.data import leakage
 from src.data.load import ChunkStream, LoadReport, load_frame
 from src.data.target import TARGET_COLUMN, TargetReport, build_target
 
@@ -154,25 +155,26 @@ def profile_columns(config: Config) -> tuple[pd.DataFrame, LoadReport]:
     return frame, stream.report
 
 
-def load_availability(path: Path) -> pd.DataFrame:
-    """Read the D2 audit. This script never writes it.
+def load_availability(path: Path, observed: Sequence[str]) -> pd.DataFrame:
+    """Read the D2 audit through the same gate the modelling path uses.
 
     The labelling answers a question about the lending process, not about the
     data, so it is maintained by hand. Keeping it in `config/` rather than in
     the generated `reports/` means rerunning the profile cannot wipe it, which
     it would if the labels lived in the file this script rewrites.
+
+    Validation is delegated to `leakage.load_audit` rather than repeated here.
+    Two implementations of the same rules would eventually disagree, and the
+    one that mattered would be whichever ran last.
+
+    Before the audit exists the profile still has to run - producing the column
+    list is what makes labelling possible - so a missing file is not an error.
     """
     if not path.is_file():
-        return pd.DataFrame(columns=["column", "availability", "reason"])
-    audit = pd.read_csv(path)
-    missing = {"column", "availability", "reason"} - set(audit.columns)
-    if missing:
-        raise ValueError(
-            f"{path} is missing required columns {sorted(missing)}. The audit "
-            "must carry a label and the reasoning behind it, because a label "
-            "nobody can justify is not an audit."
-        )
-    return audit
+        return pd.DataFrame(columns=list(leakage.REQUIRED_FIELDS))
+    audit = leakage.load_audit(path)
+    leakage.assert_covers(audit, observed)
+    return pd.DataFrame([vars(entry) for entry in audit])
 
 
 def profile_target(config: Config) -> tuple[pd.DataFrame, TargetReport]:
@@ -325,13 +327,11 @@ def write_markdown(
         "## Columns (D2 audit)",
         "",
         f"All {len(columns)} columns are listed in",
-        "[`column_profile.csv`](column_profile.csv). The `availability` label",
-        "comes from `config/column_availability.csv`, which is maintained by",
-        "hand and never written by this script: `app` if the value was known",
-        "when the application was decided, `post` if it was generated",
-        "afterwards, `?` if it still needs a decision. A whitelist built this",
-        "way fails loudly on the columns nobody thought about; a blacklist",
-        "fails silently.",
+        "[`column_profile.csv`](column_profile.csv), joined to the labels in",
+        "`config/column_availability.csv`. That file is maintained by hand and",
+        "never written by this script, so rerunning the profile cannot destroy",
+        "the audit. A whitelist built this way fails loudly on the columns",
+        "nobody thought about; a blacklist fails silently.",
         "",
         _availability_markdown(columns),
         "",
@@ -344,15 +344,47 @@ def write_markdown(
 def _availability_markdown(columns: pd.DataFrame) -> str:
     """Coverage of the audit, and everything still open."""
     labels = columns["availability"].fillna("").astype("str")
+    roles = columns.get("role", pd.Series("", index=columns.index))
+    roles = roles.fillna("").astype("str")
     counts = labels[labels != ""].value_counts()
-    lines = ["| Label | Columns |", "|---|---:|"]
-    for label in ("app", "post", "?"):
-        lines.append(f"| `{label}` | {int(counts.get(label, 0))} |")
-    unlabelled = columns.loc[labels == "", "column"].tolist()
-    lines.append(f"| *unlabelled* | {len(unlabelled)} |")
 
+    lines = [
+        "| Availability | Columns | Meaning |",
+        "|---|---:|---|",
+        f"| `app` | {int(counts.get('app', 0))} | known when the application "
+        "was decided |",
+        f"| `post` | {int(counts.get('post', 0))} | generated after "
+        "origination |",
+    ]
+    unlabelled = columns.loc[labels == "", "column"].tolist()
     if unlabelled:
+        lines.append(f"| *unlabelled* | {len(unlabelled)} | still to review |")
         lines += ["", "Still unlabelled: " + ", ".join(f"`{c}`" for c in unlabelled)]
+
+    role_counts = roles[roles != ""].value_counts()
+    if not role_counts.empty:
+        lines += [
+            "",
+            "Availability is a fact about the lending process. What a column may",
+            "be *used* for is a separate question, and collapsing the two would",
+            "force a lie into one of them: `zip_code` is available and still",
+            "excluded, on redlining grounds rather than temporal ones.",
+            "",
+            "| Role | Columns | Meaning |",
+            "|---|---:|---|",
+        ]
+        meanings = {
+            "feature": "offered to the model",
+            "text": "available free text, held back until something can extract from it",
+            "identifier": "row identity, never a feature",
+            "split_key": "the out-of-time axis (D3)",
+            "target": "the outcome (D1)",
+            "excluded": "not to be used; the audit records why",
+        }
+        for role, meaning in meanings.items():
+            lines.append(
+                f"| `{role}` | {int(role_counts.get(role, 0))} | {meaning} |"
+            )
 
     open_rows = columns[labels == "?"]
     if not open_rows.empty:
@@ -445,17 +477,12 @@ def main() -> None:
     print("pass 1/2: streaming all columns")
     columns, load_report = profile_columns(config)
 
-    audit = load_availability(config.profile.availability_path)
-    unknown = sorted(set(audit["column"]) - set(columns["column"]))
-    if unknown:
-        raise ValueError(
-            f"{config.profile.availability_path} labels columns that are not "
-            f"in the extract: {unknown}. A label pointing at nothing means the "
-            "audit and the data have drifted apart."
-        )
+    audit = load_availability(config.leakage.audit_path, columns["column"])
     columns = columns.merge(audit, on="column", how="left")
-    columns["availability"] = columns["availability"].fillna("")
-    columns["reason"] = columns["reason"].fillna("")
+    for field_name in ("availability", "role", "reason"):
+        if field_name not in columns:
+            columns[field_name] = ""
+        columns[field_name] = columns[field_name].fillna("")
 
     config.profile.column_csv_path.parent.mkdir(parents=True, exist_ok=True)
     columns.to_csv(config.profile.column_csv_path, index=False, encoding="utf-8")

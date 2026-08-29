@@ -46,9 +46,15 @@ profile:
   report_path: reports/01_profile.md
   column_csv_path: reports/column_profile.csv
   figure_path: reports/figures/01_volume_by_quarter.png
-  # The D2 audit. Hand-maintained, never written by the profiling script, so a
-  # rerun cannot destroy the labelling.
-  availability_path: config/column_availability.csv
+
+leakage:
+  # D2, the whitelist. Hand-maintained and never written by any script, so a
+  # rerun cannot destroy the labelling. `availability` records whether the
+  # value existed when the application was decided; `role` records what the
+  # column is allowed to be used for. The two are separate on purpose: zip_code
+  # is available and still excluded, for reasons that are legal rather than
+  # temporal.
+  audit_path: config/column_availability.csv
 
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:
