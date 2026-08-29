@@ -26,8 +26,8 @@ addr_state,category,2260668,0.0,51,,,,PA | SD | IL,app,feature,"Available and co
 dti,float32,2258957,0.08,">=10,000",-1,999,18.824,5.91 | 16.06 | 10.78,app,feature,credit bureau attribute pulled at application
 delinq_2yrs,float32,2260639,0.0,37,0,58,0.307,0.0 | 1.0 | 2.0,app,feature,credit bureau attribute pulled at application
 earliest_cr_line,category,2260639,0.0,754,,,,Aug-2003 | Dec-1999 | Aug-2000,app,feature,credit bureau attribute pulled at application
-fico_range_low,float32,2260668,0.0,48,610,845,698.588,675.0 | 715.0 | 695.0,app,feature,credit bureau attribute pulled at application
-fico_range_high,float32,2260668,0.0,48,614,850,702.588,679.0 | 719.0 | 699.0,app,feature,credit bureau attribute pulled at application
+fico_range_low,float32,2260668,0.0,48,610,845,698.588,675.0 | 715.0 | 695.0,app,feature,The FICO band at application. fico_range_high is the same variable and is excluded.
+fico_range_high,float32,2260668,0.0,48,614,850,702.588,679.0 | 719.0 | 699.0,app,excluded,"Measured to be fico_range_low + 4 in 99.98% of rows (r=0.9999999); the two are one variable. Keeping fico_range_low, the conservative end of the band."
 inq_last_6mths,float32,2260638,0.0,28,0,33,0.577,1.0 | 4.0 | 0.0,app,feature,credit bureau attribute pulled at application
 mths_since_last_delinq,float32,1102166,51.25,173,0,226,34.541,30.0 | 6.0 | 12.0,app,feature,credit bureau attribute pulled at application
 mths_since_last_record,float32,359156,84.11,129,0,129,72.313,106.0 | 75.0 | 30.0,app,feature,credit bureau attribute pulled at application

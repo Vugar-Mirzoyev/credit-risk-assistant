@@ -26,8 +26,8 @@ addr_state,app,feature,"Available and conventionally used, but a geographic attr
 dti,app,feature,credit bureau attribute pulled at application
 delinq_2yrs,app,feature,credit bureau attribute pulled at application
 earliest_cr_line,app,feature,credit bureau attribute pulled at application
-fico_range_low,app,feature,credit bureau attribute pulled at application
-fico_range_high,app,feature,credit bureau attribute pulled at application
+fico_range_low,app,feature,The FICO band at application. fico_range_high is the same variable and is excluded.
+fico_range_high,app,excluded,"Measured to be fico_range_low + 4 in 99.98% of rows (r=0.9999999); the two are one variable. Keeping fico_range_low, the conservative end of the band."
 inq_last_6mths,app,feature,credit bureau attribute pulled at application
 mths_since_last_delinq,app,feature,credit bureau attribute pulled at application
 mths_since_last_record,app,feature,credit bureau attribute pulled at application

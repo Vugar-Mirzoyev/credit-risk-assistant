@@ -117,11 +117,11 @@ excluded, on redlining grounds rather than temporal ones.
 
 | Role | Columns | Meaning |
 |---|---:|---|
-| `feature` | 99 | offered to the model |
+| `feature` | 98 | offered to the model |
 | `text` | 3 | available free text, held back until something can extract from it |
 | `identifier` | 3 | row identity, never a feature |
 | `split_key` | 1 | the out-of-time axis (D3) |
 | `target` | 1 | the outcome (D1) |
-| `excluded` | 44 | not to be used; the audit records why |
+| `excluded` | 45 | not to be used; the audit records why |
 
 Nothing downstream may use a column until it carries a label.
