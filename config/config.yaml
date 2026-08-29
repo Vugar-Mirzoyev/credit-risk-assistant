@@ -5,6 +5,16 @@ data:
   interim_path: data/interim/modelling_base.parquet
   status_column: loan_status
   date_column: issue_d
+  # Rows per chunk on the full-file pass. Bounds peak memory; does not affect
+  # any reported figure.
+  chunksize: 200000
+  # The extract is sixteen concatenated exports, each of which kept its own
+  # two-line "Total amount funded in policy code N" footer, plus one
+  # "Loans that do not meet the credit policy" divider. Measured: 33 such
+  # lines. They are detected by an unparsable id and dropped. The ceiling
+  # leaves headroom over that measurement; anything above it means parsing has
+  # gone wrong and must stop rather than silently shrink the population.
+  max_unparsable_rows: 100
 
 target:
   # Resolved outcomes only. Unresolved loans are neither good nor bad and are
