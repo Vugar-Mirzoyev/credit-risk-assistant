@@ -34,7 +34,9 @@ if str(PROJECT_ROOT) not in sys.path:
 import pandas as pd
 
 from src.config import Config
+from src.evaluation.explain import compare_with_scorecard, explain_global
 from src.evaluation.metrics import calibration, discrimination, gains_table
+from src.evaluation.stability import characteristic_stability, stability_by_quarter
 from src.features.woe import WOE_PREFIX
 from src.models.challenger import fit_challenger
 from src.models.scorecard import GRADE_FAMILY, fit_scorecard, without_grade_family
@@ -109,11 +111,28 @@ def evaluate_all(data: Dataset, config: Config) -> tuple[pd.DataFrame, dict]:
              boosted_woe.predict_proba(data.woe_test))
     )
 
-    artefacts["gains"] = gains_table(
-        y_test, artefacts["champion, no grade"][0].predict_proba(data.woe_test)
+    champion = artefacts["champion, no grade"][0]
+    champion_train = champion.predict_proba(data.woe_train)
+    champion_test = champion.predict_proba(data.woe_test)
+    artefacts["gains"] = gains_table(y_test, champion_test)
+    artefacts["calibration"] = calibration(y_test, champion_test)
+
+    # Stability: the score first, then the inputs. A stable score can hide two
+    # features moving in opposite directions, so both are reported.
+    artefacts["psi"] = stability_by_quarter(
+        champion_train, champion_test, data.test[data.date_column]
     )
-    artefacts["calibration"] = calibration(
-        y_test, artefacts["champion, no grade"][0].predict_proba(data.woe_test)
+    artefacts["csi"] = characteristic_stability(
+        data.train, data.test, list(data.features)
+    )
+
+    explanation = explain_global(
+        boosted, data.test, config=config.explain,
+        random_state=config.model.random_state,
+    )
+    artefacts["shap"] = explanation
+    artefacts["shap_vs_points"] = compare_with_scorecard(
+        explanation, champion.points_table()
     )
     return pd.DataFrame(rows), artefacts
 
@@ -156,6 +175,7 @@ def write_report(
     leaky: pd.DataFrame,
     artefacts: dict,
     path: Path,
+    config_top: int = 20,
 ) -> None:
     card, card_report = artefacts["champion, no grade"]
     calib = artefacts["calibration"]
@@ -193,6 +213,44 @@ def write_report(
         "",
         artefacts["gains"].round(4).to_markdown(index=False),
         "",
+        "## Stability (D5)",
+        "",
+        "The champion's predicted PD, quarter by quarter, against its training",
+        "distribution. Buckets are fixed on the training window: recomputing",
+        "them per quarter would compare every window with itself and never",
+        "report a shift.",
+        "",
+        artefacts["psi"].to_markdown(index=False),
+        "",
+        "Characteristic stability, the ten features that moved furthest. A",
+        "stable score can hide two features drifting in opposite directions,",
+        "so the inputs are measured as well as the output.",
+        "",
+        "`floor_driven` marks an index whose value comes mostly from buckets one",
+        "window never reached. The band is still worth reading; the digits are",
+        "not, because they depend on the floor rather than on the data. On this",
+        "extract every flagged feature belongs to the bureau family LendingClub",
+        "only began reporting in 2016, so the shift is a reporting change and",
+        "not a change in borrowers - see the known limitations in docs/DESIGN.md.",
+        "",
+        artefacts["csi"].head(10).to_markdown(index=False),
+        "",
+        "## Explaining the challenger (SHAP)",
+        "",
+        "The champion needs none of this: its points table already says what",
+        "each attribute contributed. The challenger has no coefficients, so its",
+        "output is attributed to the features additively instead.",
+        "",
+        "```",
+        artefacts["shap"].summary(),
+        "```",
+        "",
+        artefacts["shap"].table(config_top).to_markdown(index=False),
+        "",
+        "Where the two models disagree about what matters:",
+        "",
+        artefacts["shap_vs_points"].head(15).to_markdown(index=False),
+        "",
         "## Champion scorecard",
         "",
         "```",
@@ -220,7 +278,10 @@ def main() -> None:
     leaky = evaluate_leaky(config)
 
     report_path = PROJECT_ROOT / "reports" / "model_validation.md"
-    write_report(data_summary, clean, leaky, artefacts, report_path)
+    write_report(
+        data_summary, clean, leaky, artefacts, report_path,
+        config_top=config.explain.top_features,
+    )
     print(f"\nwrote {report_path}\n")
     print(clean.to_string(index=False))
     print()
