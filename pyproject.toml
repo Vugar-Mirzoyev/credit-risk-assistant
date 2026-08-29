@@ -1,0 +1,9 @@
+# pytest configuration only. The project is run as scripts against a virtual
+# environment, not installed as a package, so `pythonpath` is what puts `src`
+# on the import path. Without it `pytest tests/` fails while
+# `python -m pytest tests/` succeeds, which is a trap for anyone reproducing
+# the results from the README.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

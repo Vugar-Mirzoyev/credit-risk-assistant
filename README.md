@@ -23,3 +23,9 @@ Place `accepted_2007_to_2018Q4.csv` in `data/raw/`.
 ```powershell
 python scripts/profile_data.py
 ```
+
+## Tests
+
+```powershell
+pytest
+```
