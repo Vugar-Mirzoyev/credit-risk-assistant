@@ -20,5 +20,12 @@ pyyaml==6.0.3
 matplotlib==3.11.1
 tabulate==0.10.0       # DataFrame.to_markdown, used to write reports/
 
+# Layer 2 - retrieval. BM25 is implemented in src/rag/retrieve.py rather than
+# imported: it is the baseline every other retriever is measured against, so it
+# should be checkable against its formula line by line.
+sentence-transformers==6.0.1
+torch==2.13.0           # pulled in by sentence-transformers; CPU is enough here
+transformers==5.16.1
+
 # Tests
 pytest==9.1.1
