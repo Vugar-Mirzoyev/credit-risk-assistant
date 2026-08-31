@@ -98,6 +98,20 @@ rag:
     # section it sits in. Kept configurable so its effect can be measured
     # rather than assumed.
     prepend_heading: true
+  retrieval:
+    top_k: 5
+    # Conventional BM25 constants. k1 controls how fast term frequency
+    # saturates, b how much a long passage is penalised for its length.
+    bm25_k1: 1.5
+    bm25_b: 0.75
+    # Small, fast and local. D10: a reviewer must be able to reproduce every
+    # retrieval figure without an API key.
+    embedding_model: sentence-transformers/all-MiniLM-L6-v2
+    batch_size: 256
+    # Reciprocal rank fusion constant. BM25 scores and cosine similarities are
+    # not on comparable scales, so the hybrid combines ranks rather than
+    # scores and needs no normalisation anyone would have to defend.
+    rrf_k: 60
 
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:

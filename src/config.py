@@ -82,9 +82,20 @@ class ChunkConfig:
 
 
 @dataclass(frozen=True)
+class RetrievalConfig:
+    top_k: int
+    bm25_k1: float
+    bm25_b: float
+    embedding_model: str
+    batch_size: int
+    rrf_k: int
+
+
+@dataclass(frozen=True)
 class RagConfig:
     corpus_path: Path
     chunk: ChunkConfig
+    retrieval: RetrievalConfig
 
 
 @dataclass(frozen=True)
@@ -191,6 +202,14 @@ class Config:
                     overlap_words=int(raw["rag"]["chunk"]["overlap_words"]),
                     min_words=int(raw["rag"]["chunk"]["min_words"]),
                     prepend_heading=bool(raw["rag"]["chunk"]["prepend_heading"]),
+                ),
+                retrieval=RetrievalConfig(
+                    top_k=int(raw["rag"]["retrieval"]["top_k"]),
+                    bm25_k1=float(raw["rag"]["retrieval"]["bm25_k1"]),
+                    bm25_b=float(raw["rag"]["retrieval"]["bm25_b"]),
+                    embedding_model=raw["rag"]["retrieval"]["embedding_model"],
+                    batch_size=int(raw["rag"]["retrieval"]["batch_size"]),
+                    rrf_k=int(raw["rag"]["retrieval"]["rrf_k"]),
                 ),
             ),
             split=SplitConfig(
