@@ -73,6 +73,21 @@ class ExplainConfig:
 
 
 @dataclass(frozen=True)
+class ChunkConfig:
+    strategy: str
+    target_words: int
+    overlap_words: int
+    min_words: int
+    prepend_heading: bool
+
+
+@dataclass(frozen=True)
+class RagConfig:
+    corpus_path: Path
+    chunk: ChunkConfig
+
+
+@dataclass(frozen=True)
 class SplitConfig:
     # None until the yearly volume table in reports/01_profile.md has been
     # inspected. D3 forbids guessing it.
@@ -114,6 +129,7 @@ class Config:
     leakage: LeakageConfig
     challenger: ChallengerConfig
     explain: ExplainConfig
+    rag: RagConfig
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
@@ -166,6 +182,16 @@ class Config:
             explain=ExplainConfig(
                 sample_rows=int(raw["explain"]["sample_rows"]),
                 top_features=int(raw["explain"]["top_features"]),
+            ),
+            rag=RagConfig(
+                corpus_path=_resolve(raw["rag"]["corpus_path"]),
+                chunk=ChunkConfig(
+                    strategy=raw["rag"]["chunk"]["strategy"],
+                    target_words=int(raw["rag"]["chunk"]["target_words"]),
+                    overlap_words=int(raw["rag"]["chunk"]["overlap_words"]),
+                    min_words=int(raw["rag"]["chunk"]["min_words"]),
+                    prepend_heading=bool(raw["rag"]["chunk"]["prepend_heading"]),
+                ),
             ),
             split=SplitConfig(
                 cutoff_date=raw["split"]["cutoff_date"],

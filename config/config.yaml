@@ -81,6 +81,24 @@ explain:
   sample_rows: 20000
   top_features: 20
 
+rag:
+  corpus_path: data/policies
+  chunk:
+    # section | paragraph | window. Swept against the evaluation set rather
+    # than chosen; the winning value is recorded in reports/03_retrieval.md.
+    strategy: window
+    target_words: 180
+    overlap_words: 40
+    # A paragraph shorter than this is merged into its neighbour rather than
+    # emitted alone. It is never dropped: losing regulation text to make the
+    # chunk table tidy would be a silent hole in the corpus.
+    min_words: 20
+    # Prepend the section heading to every chunk. "(2) Exceptions. The
+    # following provisions do not apply" means nothing without knowing which
+    # section it sits in. Kept configurable so its effect can be measured
+    # rather than assumed.
+    prepend_heading: true
+
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:
   # no calendar year lands in the 20-25% band D3 asks for (2017 onward is
