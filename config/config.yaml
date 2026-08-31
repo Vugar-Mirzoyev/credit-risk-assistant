@@ -112,6 +112,11 @@ rag:
     # not on comparable scales, so the hybrid combines ranks rather than
     # scores and needs no normalisation anyone would have to defend.
     rrf_k: 60
+    # Vectors are derived from the committed corpus by a documented command,
+    # so the cache is not tracked.
+    cache_path: data/interim/embeddings
+    report_path: reports/03_retrieval.md
+    questions_path: config/retrieval_questions.yaml
 
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:

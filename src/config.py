@@ -89,6 +89,9 @@ class RetrievalConfig:
     embedding_model: str
     batch_size: int
     rrf_k: int
+    cache_path: Path
+    report_path: Path
+    questions_path: Path
 
 
 @dataclass(frozen=True)
@@ -210,6 +213,9 @@ class Config:
                     embedding_model=raw["rag"]["retrieval"]["embedding_model"],
                     batch_size=int(raw["rag"]["retrieval"]["batch_size"]),
                     rrf_k=int(raw["rag"]["retrieval"]["rrf_k"]),
+                    cache_path=_resolve(raw["rag"]["retrieval"]["cache_path"]),
+                    report_path=_resolve(raw["rag"]["retrieval"]["report_path"]),
+                    questions_path=_resolve(raw["rag"]["retrieval"]["questions_path"]),
                 ),
             ),
             split=SplitConfig(

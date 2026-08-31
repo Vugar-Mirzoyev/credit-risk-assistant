@@ -43,3 +43,32 @@ def save_cached(directory: Path | str, key: str, embeddings: np.ndarray) -> Path
     path = directory / f"embeddings_{key}.npy"
     np.save(path, embeddings)
     return path
+
+
+def build_dense_retriever(
+    chunks: Sequence[Chunk],
+    *,
+    model_name: str,
+    batch_size: int,
+    cache_dir: Path | str,
+    verbose: bool = True,
+):
+    """A dense retriever, reusing cached vectors when the key still matches."""
+    from src.rag.retrieve import DenseRetriever
+
+    key = cache_key(model_name, chunks)
+    cached = load_cached(cache_dir, key)
+    if cached is not None:
+        if verbose:
+            print(f"  embeddings from cache ({key})", flush=True)
+        return DenseRetriever(
+            chunks, model_name=model_name, embeddings=cached
+        )
+
+    if verbose:
+        print(f"  embedding {len(chunks):,} chunks ({key})", flush=True)
+    retriever = DenseRetriever(
+        chunks, model_name=model_name, batch_size=batch_size
+    )
+    save_cached(cache_dir, key, retriever.embeddings)
+    return retriever
