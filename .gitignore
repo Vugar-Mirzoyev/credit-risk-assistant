@@ -9,9 +9,11 @@ data/processed/*
 *.pkl
 *.onnx
 
-# Vector stores (layer 2)
+# Vector stores and embedding caches (layer 2). Derived from the committed
+# corpus by a documented command, so there is nothing to preserve here.
 .chroma/
 *.faiss
+*.npy
 
 # Secrets
 .env
