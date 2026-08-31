@@ -162,7 +162,7 @@ def fit_challenger(
     if missing:
         raise KeyError(f"Columns absent from the fitting frame: {sorted(missing)}.")
 
-    fitting, validation, boundary = split_for_early_stopping(
+    fitting, validation, _ = split_for_early_stopping(
         frame, date_column, config.validation_months
     )
     categorical = tuple(

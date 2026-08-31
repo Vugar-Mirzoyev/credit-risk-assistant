@@ -15,6 +15,12 @@ each script that needs them. Bin edges are learned parameters, and a script
 that fits them before splitting would produce numbers that look right and are
 not. Assembling the order once means it cannot be got wrong differently in two
 places.
+
+This module has no unit tests, and that is a real gap rather than an oversight:
+it does nothing except call modules that are tested individually, and
+exercising it needs the 1.6 GB extract, which the test suite deliberately does
+not depend on so that a reviewer can clone the repository and run `pytest`
+without downloading anything. It is exercised end to end by both scripts.
 """
 
 from __future__ import annotations
@@ -140,7 +146,7 @@ def _prepare(config: Config, *, leaky: bool, verbose: bool) -> Dataset:
 
     say(f"fitting WOE bins on the training split, {len(features)} features")
     binner = WoeBinner(config.woe).fit(train[list(features)], train[TARGET_COLUMN])
-    woe_train, transform_train = binner.transform(train[list(features)])
+    woe_train, _ = binner.transform(train[list(features)])
     woe_test, transform_test = binner.transform(test[list(features)])
 
     return Dataset(

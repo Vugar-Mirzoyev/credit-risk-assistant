@@ -50,7 +50,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
-from src.config import ModelConfig, ScorecardConfig
+from src.config import ModelConfig
 from src.features.woe import WOE_PREFIX, WoeBinner
 
 #: LendingClub's own grade and its derivatives. Excluded from the champion.
