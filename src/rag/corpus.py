@@ -107,6 +107,74 @@ def _element_text(element: ET.Element) -> str:
     return normalise(" ".join(t for t in element.itertext() if t))
 
 
+def _interpretation_key(heading: str) -> str:
+    """`Paragraph 2(p) Empirically Derived...` -> `2(p)`.
+
+    The official interpretations are cited by the provision they interpret, not
+    by their position in the appendix, so the key is taken from the heading.
+    """
+    text = heading.strip()
+    text = re.sub(r"^(Paragraph|Section)\s+", "", text, flags=re.I)
+    match = re.match(r"^(\d+[\w.]*(?:\([^)\s]{1,6}\))*)", text)
+    return match.group(1) if match else ""
+
+
+def _split_supplement(
+    node: ET.Element, document: str, part: str, appendix: str
+) -> list[Section]:
+    """Break an appendix apart on the headings it already carries.
+
+    Supplement I to a part is the official interpretations, and on this corpus
+    it arrives as one flat run of 800 to 5,800 paragraphs. Left whole it is a
+    single 49,000-word unit for Regulation B and a 431,000-word one for
+    Regulation Z, which no retriever can address and no answer can cite.
+
+    The headings inside it are already the citation keys a lawyer would use:
+    ``2(p) Empirically Derived and Other Credit Scoring Systems`` is the
+    interpretation of § 1002.2(p), the provision that defines what a
+    statistically sound credit scoring system is. Splitting on them turns the
+    commentary from one blob into the units it was written as.
+    """
+    sections: list[Section] = []
+    context = ""
+    heading = appendix
+    key = ""
+    paragraphs: list[str] = []
+
+    def flush() -> None:
+        if not paragraphs:
+            return
+        label = " / ".join(part for part in (context, heading) if part)
+        number = f"{part} Supp. I {key}" if key else f"{part} Supp. I"
+        sections.append(
+            Section(
+                document=document,
+                part=part,
+                number=number,
+                heading=label,
+                paragraphs=tuple(paragraphs),
+            )
+        )
+        paragraphs.clear()
+
+    for child in node:
+        if child.tag in ("HD1", "HD2"):
+            flush()
+            context = _element_text(child)
+            heading = ""
+            key = _interpretation_key(context)
+        elif child.tag == "HD3":
+            flush()
+            heading = _element_text(child)
+            key = _interpretation_key(heading) or key
+        elif child.tag in ("P", "FP", "FP-DASH"):
+            text = _element_text(child)
+            if text:
+                paragraphs.append(text)
+    flush()
+    return sections
+
+
 def _sections_of(root: ET.Element, document: str, part: str) -> list[Section]:
     sections: list[Section] = []
     for node in root.iter():
@@ -114,6 +182,11 @@ def _sections_of(root: ET.Element, document: str, part: str) -> list[Section]:
             continue
         head = node.find("HEAD")
         heading = _element_text(head) if head is not None else ""
+
+        if any(child.tag in ("HD2", "HD3") for child in node):
+            sections.extend(_split_supplement(node, document, part, heading))
+            continue
+
         paragraphs = [
             _element_text(p)
             for p in node.iter()

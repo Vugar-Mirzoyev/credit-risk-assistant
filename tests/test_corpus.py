@@ -125,6 +125,74 @@ def test_corpus_totals_add_up(tmp_path):
     assert "sections" in corpus.summary()
 
 
+SUPPLEMENT_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<ECFR>
+  <DIV5 TYPE="PART" N="1002">
+    <HEAD>PART 1002</HEAD>
+    <DIV9 TYPE="APPENDIX" N="Supplement I to Part 1002">
+      <HEAD>Supplement I to Part 1002—Official Interpretations</HEAD>
+      <HD1>Introduction</HD1>
+      <P>1. Official status of the commentary.</P>
+      <HD2>Section 1002.2—Definitions</HD2>
+      <P>2(c) Adverse action.</P>
+      <HD3>2(p) Empirically Derived and Other Credit Scoring Systems</HD3>
+      <P>1. Purpose of definition. The definition sets the criteria.</P>
+      <P>2. Periodic revalidation. The regulation does not specify how often.</P>
+      <HD3>Paragraph 4(b)</HD3>
+      <P>1. Discouraging applications is prohibited.</P>
+    </DIV9>
+  </DIV5>
+</ECFR>
+"""
+
+
+def test_official_interpretations_are_split_on_their_own_headings(tmp_path):
+    # Left whole, Supplement I to Regulation B is one 49,000-word unit and the
+    # interpretation of the credit-scoring definition cannot be addressed at
+    # all. The headings inside it are already the keys a lawyer would cite.
+    sections = load_document(_write(tmp_path, SUPPLEMENT_XML, "supp.xml"))
+    numbers = [s.number for s in sections]
+
+    assert "1002 Supp. I 2(p)" in numbers
+    assert "1002 Supp. I 4(b)" in numbers
+
+    scoring = next(s for s in sections if s.number == "1002 Supp. I 2(p)")
+    assert "Periodic revalidation" in scoring.text
+    assert "Discouraging applications" not in scoring.text
+    assert scoring.citation == "12 CFR 1002 Supp. I 2(p)"
+
+
+def test_a_split_supplement_keeps_the_section_it_sits_under(tmp_path):
+    sections = load_document(_write(tmp_path, SUPPLEMENT_XML, "supp.xml"))
+    scoring = next(s for s in sections if s.number == "1002 Supp. I 2(p)")
+
+    assert "Section 1002.2" in scoring.heading
+    assert "Empirically Derived" in scoring.heading
+
+
+def test_splitting_a_supplement_loses_no_text(tmp_path):
+    # The check that matters: the split reorganises, it must not drop or
+    # duplicate a single paragraph of regulation.
+    sections = load_document(_write(tmp_path, SUPPLEMENT_XML, "supp.xml"))
+    joined = " ".join(s.text for s in sections)
+
+    for sentence in (
+        "Official status of the commentary",
+        "Adverse action",
+        "Purpose of definition",
+        "Periodic revalidation",
+        "Discouraging applications",
+    ):
+        assert joined.count(sentence) == 1
+
+
+def test_an_appendix_without_inner_headings_stays_whole(tmp_path):
+    sections = load_document(_write(tmp_path))
+    appendix = [s for s in sections if "Appendix B" in s.heading]
+
+    assert len(appendix) == 1
+
+
 def test_a_missing_document_points_at_the_fetch_script(tmp_path):
     with pytest.raises(FileNotFoundError, match="fetch_policies.py"):
         load_document(tmp_path / "absent.xml")
@@ -144,9 +212,17 @@ def test_the_committed_corpus_loads_and_carries_what_layer_one_needs():
     assert corpus.words > 500_000
     assert {"1002", "1022", "1026"} <= {s.part for s in corpus.sections}
 
-    # The two sections the whole project points at.
+    # The three units the whole project points at.
     notifications = corpus.by_citation("12 CFR 1002.9")
     definitions = corpus.by_citation("12 CFR 1002.2")
+    commentary = corpus.by_citation("12 CFR 1002 Supp. I 2(p)")
+
     assert notifications is not None and "Notifications" in notifications.heading
     assert definitions is not None
     assert "empirically derived" in definitions.text.lower()
+    # The official interpretation of the provision that defines what Layer 1
+    # built. Before the supplement was split this was buried in a single
+    # 49,000-word unit and could not be retrieved on its own.
+    assert commentary is not None
+    assert commentary.words < 2000
+    assert "revalidation" in commentary.text.lower()
