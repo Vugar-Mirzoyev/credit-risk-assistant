@@ -102,6 +102,61 @@ def test_declared_dtypes_are_applied(tmp_path):
     assert isinstance(frame["grade"].dtype, pd.CategoricalDtype)
 
 
+def test_the_dtype_map_is_the_contract_everything_else_rests_on():
+    # Every downstream module trusts these declarations: WOE routes on them,
+    # LightGBM refuses anything but a real categorical, and an unclassified
+    # column becoming float32 is what makes a new string column fail loudly
+    # rather than quietly arrive as text.
+    plan = load.dtype_map(
+        ["id", "desc", "grade", "issue_d", "annual_inc", "loan_amnt", "brand_new"]
+    )
+
+    assert plan["id"] == "str"  # identifier
+    assert plan["desc"] == "str"  # free text
+    assert plan["grade"] == "category"
+    assert plan["issue_d"] == "category"  # parsed to datetime after reading
+    assert plan["annual_inc"] == "float64"  # measured past the float32 ceiling
+    assert plan["loan_amnt"] == load.FLOAT_DTYPE
+    # The important one: anything nobody classified is numeric by default, so
+    # an unexpected text column stops the run instead of slipping through.
+    assert plan["brand_new"] == load.FLOAT_DTYPE
+
+
+def test_categorical_columns_are_read_as_text_and_converted_afterwards():
+    # Declaring `category` to the C parser fails on this file: it infers the
+    # category set per internal block and an all-null block gets float64
+    # categories, which cannot be concatenated with the others.
+    read_plan = load._read_dtypes(["grade", "loan_amnt", "id"])
+
+    assert read_plan["grade"] == "str"
+    assert read_plan["loan_amnt"] == load.FLOAT_DTYPE
+    assert read_plan["id"] == "str"
+
+
+def test_a_bounded_sample_applies_the_same_declarations(tmp_path):
+    path = _write(tmp_path, HEADER + ROWS + TRAILER)
+
+    frame = load.sample_frame(path, nrows=2, date_column="issue_d")
+
+    assert len(frame) == 2
+    assert frame["loan_amnt"].dtype == load.FLOAT_DTYPE
+    assert isinstance(frame["grade"].dtype, pd.CategoricalDtype)
+    assert pd.api.types.is_datetime64_any_dtype(frame["issue_d"])
+
+
+def test_the_header_is_read_without_touching_any_data_row(tmp_path):
+    path = _write(tmp_path, HEADER + ROWS)
+
+    assert load.read_header(path) == (
+        "id",
+        "loan_amnt",
+        "annual_inc",
+        "grade",
+        "issue_d",
+        "loan_status",
+    )
+
+
 def test_a_category_absent_from_the_first_chunk_survives_concatenation(tmp_path):
     # pd.concat of categoricals whose category sets differ falls back to plain
     # strings, silently. The column would then arrive as str, costing the
