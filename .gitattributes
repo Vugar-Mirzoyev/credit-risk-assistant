@@ -1,0 +1,4 @@
+# The policy corpus is kept byte-for-byte as the eCFR served it. Line-ending
+# conversion would make a fresh clone differ from a fresh download, and
+# data/policies/MANIFEST.json records the exact byte counts.
+data/policies/*.xml -text
