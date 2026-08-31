@@ -1,0 +1,282 @@
+# D8: the retrieval evaluation set. Hand-written, hand-maintained, never
+# generated.
+#
+# Each entry pairs a question with the section that answers it. Retrieval is
+# scored on whether that *section* came back, not on whether plausible text
+# did, which is why every entry carries a citation rather than a passage.
+#
+# `evidence` is a phrase that must appear in the cited section. It is checked
+# by the test suite. Without it a question could quietly point at the wrong
+# section and every number computed from this file would be wrong in a way
+# nothing would reveal - the Layer 2 version of the reconciliation D1 does on
+# its row counts.
+#
+# `kind` splits the set in two, and the split is the point:
+#
+#   lexical     the question uses the terms of art the section uses. A keyword
+#               index should do well; if it does not, something is broken.
+#   paraphrase  the question asks the same thing in the words a person would
+#               actually use, sharing little or no vocabulary with the text.
+#               This is where a keyword index is expected to struggle and an
+#               embedding is expected to earn its place.
+#
+# Writing only lexical questions would make BM25 win by construction and the
+# comparison in D7 would measure nothing. The balance is deliberate and the
+# report breaks the scores down by kind.
+
+questions:
+  # --- Regulation B: notification and adverse action -----------------------
+  - id: q01
+    question: What must a creditor include in an adverse action notice?
+    citations: ["12 CFR 1002.9"]
+    kind: lexical
+    evidence: "statement of specific reasons"
+
+  - id: q02
+    question: How long does a lender have to tell someone whether their loan was approved?
+    citations: ["12 CFR 1002.9"]
+    kind: paraphrase
+    evidence: "30 days after receiving a completed application"
+
+  - id: q03
+    question: If an application is incomplete, what are the creditor's options?
+    citations: ["12 CFR 1002.9"]
+    kind: paraphrase
+    evidence: "incomplete application"
+
+  - id: q04
+    question: Which federal agencies have to be named in a notice of adverse action?
+    citations: ["12 CFR Appendix A to Part 1002"]
+    kind: lexical
+    evidence: "Federal Agencies"
+
+  - id: q05
+    question: Is there an official example of the wording to use when turning someone down?
+    citations: ["12 CFR Appendix C to Part 1002"]
+    kind: paraphrase
+    evidence: "Sample Notification Forms"
+
+  # --- Regulation B: what a model may and may not use ----------------------
+  - id: q06
+    question: What makes a credit scoring system empirically derived and statistically sound?
+    citations: ["12 CFR 1002.2", "12 CFR 1002 Supp. I 2(p)"]
+    kind: lexical
+    evidence: "empirically derived"
+
+  - id: q07
+    question: How often does a scoring model have to be checked to make sure it still works?
+    citations: ["12 CFR 1002 Supp. I 2(p)"]
+    kind: paraphrase
+    evidence: "revalidat"
+
+  - id: q08
+    question: Can the borrower's age be used in scoring an application?
+    citations: ["12 CFR 1002.6"]
+    kind: paraphrase
+    evidence: "age of an elderly applicant"
+
+  - id: q09
+    question: Does the effects test apply when deciding whether discrimination has occurred?
+    citations: ["12 CFR 1002.6"]
+    kind: lexical
+    evidence: "effects test"
+
+  - id: q10
+    question: What counts as a prohibited basis for a credit decision?
+    citations: ["12 CFR 1002.2"]
+    kind: lexical
+    evidence: "prohibited basis"
+
+  - id: q11
+    question: May a lender take into account whether an applicant receives public assistance?
+    citations: ["12 CFR 1002.6"]
+    kind: paraphrase
+    evidence: "public assistance"
+
+  - id: q12
+    question: What may a creditor ask about an applicant's marital status?
+    citations: ["12 CFR 1002.5"]
+    kind: lexical
+    evidence: "marital status"
+
+  - id: q13
+    question: Is it allowed to put people off from applying in the first place?
+    citations: ["12 CFR 1002.4"]
+    kind: paraphrase
+    evidence: "discourage"
+
+  # --- Regulation B: definitions and scope ---------------------------------
+  - id: q14
+    question: What does adverse action mean under the equal credit rules?
+    citations: ["12 CFR 1002.2"]
+    kind: lexical
+    evidence: "Adverse action"
+
+  - id: q15
+    question: Who counts as an applicant?
+    citations: ["12 CFR 1002.2"]
+    kind: lexical
+    evidence: "any person who requests or who has received"
+
+  - id: q16
+    question: Are there kinds of lending that only have to follow part of these rules?
+    citations: ["12 CFR 1002.3"]
+    kind: paraphrase
+    evidence: "Public utilities credit"
+
+  - id: q16b
+    question: Do loans made to a company follow the same notification rules as loans to a person?
+    citations: ["12 CFR 1002.9", "12 CFR 1002.2"]
+    kind: paraphrase
+    evidence: "business credit"
+
+  - id: q17
+    question: Can a lender run a programme aimed only at disadvantaged groups?
+    citations: ["12 CFR 1002.8"]
+    kind: paraphrase
+    evidence: "special purpose credit program"
+
+  # --- Regulation B: records, monitoring, self-testing ---------------------
+  - id: q18
+    question: How long must application records be kept?
+    citations: ["12 CFR 1002.12"]
+    kind: lexical
+    evidence: "retention"
+
+  - id: q19
+    question: What race and ethnicity data has to be collected on a mortgage application?
+    citations: ["12 CFR 1002.13"]
+    kind: paraphrase
+    evidence: "Ethnicity"
+
+  - id: q20
+    question: If a lender audits itself and finds a problem, can that be used against it?
+    citations: ["12 CFR 1002.15"]
+    kind: paraphrase
+    evidence: "self-test"
+
+  - id: q21
+    question: What happens to a creditor that breaks these rules?
+    citations: ["12 CFR 1002.16"]
+    kind: paraphrase
+    evidence: "penalties"
+
+  - id: q22
+    question: Does the applicant get a copy of the property valuation?
+    citations: ["12 CFR 1002.14"]
+    kind: paraphrase
+    evidence: "appraisals and other written valuations"
+
+  # --- Regulation B: small business lending data --------------------------
+  - id: q23
+    question: Which employees must be prevented from seeing an applicant's demographic answers?
+    citations: ["12 CFR 1002.108"]
+    kind: paraphrase
+    evidence: "firewall"
+
+  - id: q24
+    question: What data has to be compiled about small business credit applications?
+    citations: ["12 CFR 1002.107"]
+    kind: lexical
+    evidence: "Compilation of reportable data"
+
+  - id: q25
+    question: Which small business transactions are covered and which are left out?
+    citations: ["12 CFR 1002.104"]
+    kind: lexical
+    evidence: "excluded transactions"
+
+  - id: q26
+    question: How much error is tolerated in the small business figures that get reported?
+    citations: ["12 CFR Appendix F to Part 1002"]
+    kind: paraphrase
+    evidence: "Tolerances"
+
+  # --- Regulation V: risk-based pricing and credit reports -----------------
+  - id: q27
+    question: When does someone have to be told that their rate was set using a credit report?
+    citations: ["12 CFR 1022.72"]
+    kind: paraphrase
+    evidence: "risk-based pricing notice"
+
+  - id: q28
+    question: What has to be written on a risk-based pricing notice?
+    citations: ["12 CFR 1022.73"]
+    kind: lexical
+    evidence: "Content of the notice"
+
+  - id: q29
+    question: Are there situations where the pricing notice can be skipped?
+    citations: ["12 CFR 1022.74"]
+    kind: paraphrase
+    evidence: "application for specific terms"
+
+  - id: q30
+    question: Can a lender look at someone's medical bills when deciding on credit?
+    citations: ["12 CFR 1022.30"]
+    kind: paraphrase
+    evidence: "medical information"
+
+  - id: q31
+    question: How does a consumer get their free yearly credit file?
+    citations: ["12 CFR 1022.136", "12 CFR 1022.137"]
+    kind: paraphrase
+    evidence: "annual file disclosure"
+
+  - id: q32
+    question: What are the rules on advertising a credit report as free?
+    citations: ["12 CFR 1022.138"]
+    kind: paraphrase
+    evidence: "free credit report"
+
+  - id: q33
+    question: What does affiliate marketing opt-out require?
+    citations: ["12 CFR 1022.21"]
+    kind: lexical
+    evidence: "opt-out"
+
+  - id: q34
+    question: What does consumer report mean in the fair credit reporting rules?
+    citations: ["12 CFR 1022.3"]
+    kind: lexical
+    evidence: "Identity theft"
+
+  - id: q35
+    question: Can information about a debt from human trafficking stay on a credit file?
+    citations: ["12 CFR 1022.142"]
+    kind: paraphrase
+    evidence: "trafficking"
+
+  # --- Regulation Z: the adjacent corpus ----------------------------------
+  # These sit in the 578,000 words that are relevant to lending but not to a
+  # credit decision. They are here so the evaluation is not run entirely on
+  # the part of the corpus the retriever finds easiest.
+  - id: q36
+    question: How is the annual percentage rate defined?
+    citations: ["12 CFR 1026.22"]
+    kind: paraphrase
+    evidence: "actuarial method"
+
+  - id: q37
+    question: What has to be disclosed before a closed-end loan is signed?
+    citations: ["12 CFR 1026.17", "12 CFR 1026.18"]
+    kind: paraphrase
+    evidence: "Itemization of the amount financed"
+
+  - id: q38
+    question: How long does a borrower have to change their mind on a home equity loan?
+    citations: ["12 CFR 1026.23"]
+    kind: paraphrase
+    evidence: "midnight of the third business day"
+
+  - id: q39
+    question: What are the rules for advertising a credit rate?
+    citations: ["12 CFR 1026.24"]
+    kind: lexical
+    evidence: "Advertisement of rate of finance charge"
+
+  - id: q40
+    question: What is a finance charge?
+    citations: ["12 CFR 1026.4"]
+    kind: lexical
+    evidence: "finance charge is the cost of consumer credit"
