@@ -9,8 +9,9 @@ The methodology is the deliverable, not the leaderboard number. A model with a
 moderate Gini and a rigorous validation trail is more useful than a stronger
 model with no audit, because only the first one can be deployed and defended.
 
-Layer 2, a retrieval-augmented assistant over credit policy documents, is
-scoped and not yet built.
+Layer 2 reads the regulation that requires the first layer to be explainable:
+retrieval over 12 CFR 1002, 1022 and 1026, scored against a hand-written
+evaluation set with a keyword baseline beside it.
 
 ## Results
 
@@ -32,6 +33,29 @@ is the size of the mistake the column audit prevents.
 Full detail in [`reports/model_validation.md`](reports/model_validation.md);
 the data profile and the column audit are in
 [`reports/01_profile.md`](reports/01_profile.md).
+
+## Retrieval
+
+1,114 sections of US consumer lending regulation, 41 hand-written questions,
+scored on whether the section that answers each one comes back in the top five:
+
+| Retriever | recall@5 | MRR | lexical | paraphrase |
+|---|---:|---:|---:|---:|
+| BM25 (keyword baseline) | 0.659 | 0.533 | 0.750 | 0.600 |
+| **Dense embeddings** | **0.756** | **0.653** | **0.875** | 0.680 |
+| Hybrid (rank fusion) | 0.732 | 0.616 | 0.750 | **0.720** |
+
+The baseline is the point. An embedding retriever reported on its own cannot be
+judged, and the expectation written into the design beforehand - that keyword
+search would win on regulatory terms of art - turned out to be wrong. Chunking
+was swept rather than chosen, and prepending the section heading to every chunk
+is worth 7 points of recall, which is why it was measured instead of assumed.
+
+Every question the best retriever still misses is listed by name in
+[`reports/03_retrieval.md`](reports/03_retrieval.md).
+
+The corpus is committed, so this runs from a clone with no download and no API
+key.
 
 ## The three mistakes this is built to avoid
 
@@ -60,18 +84,21 @@ so the holdout influences nothing at all - not even the number of trees.
 ## What is in here
 
 ```
-config/    config.yaml, and the 151-row column audit
+config/    config.yaml, the 151-row column audit, 41 retrieval questions
+data/      policies/ - three regulations, committed, public domain
 src/       data (load, target, leakage, split), features (build, woe),
            models (scorecard, challenger), evaluation (metrics, stability,
-           explain), pipeline
-scripts/   profile_data.py, train_models.py
-reports/   01_profile.md, model_validation.md, column_profile.csv, figures
-tests/     one file per module, 173 tests
-docs/      DESIGN.md - the five decisions, and the reasoning behind them
+           explain), rag (corpus, chunk, retrieve, embed, evaluate), pipeline
+scripts/   profile_data.py, train_models.py, fetch_policies.py,
+           evaluate_retrieval.py
+reports/   01_profile.md, model_validation.md, 03_retrieval.md, figures
+tests/     one file per module, 230 tests
+docs/      DESIGN.md - the eleven decisions, and the reasoning behind them
 ```
 
-Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the five decisions
-that shape everything else and the limitations they do not cover.
+Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the eleven decisions
+that shape everything else - five for the model, six for retrieval - and the
+limitations they do not cover.
 
 ## Setup
 
@@ -90,11 +117,16 @@ not tracked; the loader streams it in chunks and never holds more than about
 ```powershell
 python scripts/profile_data.py
 python scripts/train_models.py
+python scripts/evaluate_retrieval.py
 ```
 
 The first writes the data profile and the per-column statistics the audit is
-made against; the second fits six models and writes the validation report.
-Every figure in this README comes from one of those two commands.
+made against; the second fits six models and writes the validation report; the
+third sweeps the chunking strategies and scores the three retrievers. Every
+figure in this README comes from one of those three commands.
+
+Only the first two need the LendingClub extract. The retrieval evaluation runs
+on the committed corpus.
 
 ## Tests
 

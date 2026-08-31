@@ -343,6 +343,22 @@ Layer 1 is complete when a reviewer can:
 If any of the eight is missing, the layer is not done, regardless of how the
 model scores.
 
+Layer 2 is complete when a reviewer can:
+
+1. See where the corpus came from and which version of it, without asking
+2. Read the questions the retriever is scored on, and check that each one is
+   answerable from the section it names
+3. See a keyword baseline next to the embedding retriever, not the embedding
+   retriever alone
+4. See the chunking parameters swept rather than asserted
+5. Read every question the best retriever still gets wrong
+6. Reproduce all of it from a documented command, with no API key and no
+   download
+
+The sixth is the one Layer 1 could not offer: the extract it depends on is
+1.6 GB and cannot be committed. The policy corpus is 4.6 MB of public-domain
+regulation, so Layer 2 has no excuse.
+
 ---
 
 ## 6. Known limitations
