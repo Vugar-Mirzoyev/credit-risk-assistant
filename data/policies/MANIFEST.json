@@ -1,0 +1,21 @@
+{
+  "source": "eCFR api.versioner.v1, title 12",
+  "issue_date": "2026-08-26",
+  "documents": [
+    {
+      "part": "1002",
+      "file": "12cfr1002_regulation_b.xml",
+      "bytes": 504474
+    },
+    {
+      "part": "1022",
+      "file": "12cfr1022_regulation_v_fcra.xml",
+      "bytes": 272782
+    },
+    {
+      "part": "1026",
+      "file": "12cfr1026_regulation_z_truth_in_lending.xml",
+      "bytes": 3946980
+    }
+  ]
+}
