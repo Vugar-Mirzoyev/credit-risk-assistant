@@ -149,6 +149,88 @@ Stability is measured with **PSI across quarters** rather than assumed.
 
 ---
 
+## 2b. Layer 2 decisions
+
+Six more, in the same form. Layer 1's habit carries over unchanged: measure
+rather than assert, fail loudly, and publish the number that makes the other
+numbers judgeable.
+
+### D6 — The corpus is real regulation, and it is committed
+
+`data/policies/` holds three parts of 12 CFR, fetched from the eCFR and kept in
+the repository:
+
+| Part | What it governs | Why it is here |
+|---|---|---|
+| 1002 | Regulation B, ECOA | Defines an "empirically derived, demonstrably and statistically sound" credit scoring system, the bases a decision may not rest on, and what an adverse action notice must contain |
+| 1022 | Regulation V, FCRA | Risk-based pricing notices and credit score disclosure, around the bureau attributes that make up most of the feature set |
+| 1026 | Regulation Z, TILA | Disclosure of rate, term and instalment - three of the model's own inputs |
+
+Writing the documents *and* the questions would make any result unreadable: a
+reviewer cannot tell a good retriever from a well-chosen corpus. Real
+regulation is checkable against a public source.
+
+Regulation Z is much the largest and much the least relevant to a credit
+decision, and that is deliberate. A corpus in which everything is relevant
+makes retrieval look good for the wrong reason.
+
+The XML is committed rather than fetched on demand. eCFR content changes, so a
+corpus rebuilt on every run is not reproducible; the issue date is recorded in
+`data/policies/MANIFEST.json` and the download is scripted. US federal
+regulations are public domain. This also fixes something Layer 1 could not: the
+retrieval evaluation runs from a clone with no download at all.
+
+### D7 — Retrieval is compared against a keyword baseline
+
+Three retrievers, reported together: **BM25**, **dense embeddings**, and a
+**hybrid** of the two.
+
+An embedding retriever reported on its own is unfalsifiable. Regulatory text is
+full of exact terms of art - "adverse action", "empirically derived", "annual
+percentage rate" - and on that kind of language a keyword index is often the
+stronger one. If BM25 wins, that is the result; it is more informative than a
+vector store with no comparison, and it is the same reasoning that makes D4
+report champion and challenger rather than a winner.
+
+### D8 — The evaluation set is hand-built, and its failures are listed
+
+Questions are written by hand against the corpus, each paired with the section
+that answers it. Retrieval is scored by whether the right **section** was
+returned, not whether plausible text was.
+
+Averages hide the cases that matter, so every missed question is listed
+individually in the report, the same way every excluded column carries a
+written reason in the D2 audit.
+
+### D9 — Chunking is measured, not chosen
+
+Chunk size and strategy are parameters that move the result, so they are swept
+against the evaluation set and the table is published. Structure-aware
+chunking has a natural unit here: eCFR sections carry their own numbers, which
+is what lets an answer cite `12 CFR 1002.9` instead of gesturing at a
+paragraph.
+
+### D10 — Embeddings run locally
+
+Sentence-transformers, no API key. A reviewer who clones the repository must be
+able to reproduce every retrieval figure from a documented command. A hosted
+embedding would score better and would break the property Layer 1 spent its
+whole effort establishing.
+
+### D11 — Generation is optional and measured separately
+
+Most of what goes wrong in retrieval-augmented generation goes wrong in
+retrieval, and retrieval is measurable without a language model. The generation
+step therefore sits behind a configured key: the prompts and the evaluation
+harness are committed and readable, faithfulness and answer relevance are
+measured when a key is present, and every retrieval number stands without one.
+
+Stating that boundary is the point. A repository whose headline numbers cannot
+be reproduced without a paid credential should say so rather than imply
+otherwise.
+
+---
+
 ## 3. Repository layout
 
 ```
@@ -165,6 +247,7 @@ credit-risk-assistant/
 │   └── processed/
 ├── docs/
 │   └── DESIGN.md             # this file
+├── data/policies/            # 12 CFR 1002, 1022, 1026 - committed, public domain
 ├── src/
 │   ├── config.py             # config.yaml -> typed dataclass
 │   ├── pipeline.py           # audit -> load -> target -> derive -> split -> bin
@@ -179,13 +262,22 @@ credit-risk-assistant/
 │   ├── models/
 │   │   ├── scorecard.py      # D4 champion
 │   │   └── challenger.py     # D4 challenger
-│   └── evaluation/
-│       ├── metrics.py        # D5: Gini, KS, AUC, calibration
-│       ├── stability.py      # PSI, CSI
-│       └── explain.py        # SHAP
+│   ├── evaluation/
+│   │   ├── metrics.py        # D5: Gini, KS, AUC, calibration
+│   │   ├── stability.py      # PSI, CSI
+│   │   └── explain.py        # SHAP
+│   └── rag/                  # Layer 2
+│       ├── corpus.py         # D6: eCFR XML -> citable sections
+│       ├── chunk.py          # D9
+│       ├── embed.py          # D10
+│       ├── retrieve.py       # D7: BM25, dense, hybrid
+│       ├── evaluate.py       # D8: recall@k, MRR, RAGAS
+│       └── answer.py         # D11
 ├── scripts/
 │   ├── profile_data.py       # produces reports/01_profile.md
-│   └── train_models.py       # produces reports/model_validation.md
+│   ├── train_models.py       # produces reports/model_validation.md
+│   ├── fetch_policies.py     # downloads the D6 corpus
+│   └── evaluate_retrieval.py # produces reports/03_retrieval.md
 ├── tests/                    # one file per module
 │   ├── test_load.py
 │   ├── test_target.py
@@ -203,7 +295,10 @@ credit-risk-assistant/
     └── model_validation.md
 ```
 
-Layer 2 adds `src/rag/` to the same repository. One system, not two projects.
+Layer 2 adds `src/rag/` to the same repository. One system, not two projects:
+Layer 1 builds a scorecard whose points table exists so an applicant can be
+told why they were declined, and Layer 2 reads the regulation that requires
+it.
 
 ---
 
