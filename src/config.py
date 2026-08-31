@@ -24,7 +24,6 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 @dataclass(frozen=True)
 class DataConfig:
     raw_path: Path
-    interim_path: Path
     status_column: str
     date_column: str
     chunksize: int
@@ -131,7 +130,6 @@ class Config:
         return cls(
             data=DataConfig(
                 raw_path=_resolve(raw["data"]["raw_path"]),
-                interim_path=_resolve(raw["data"]["interim_path"]),
                 status_column=raw["data"]["status_column"],
                 date_column=raw["data"]["date_column"],
                 chunksize=int(raw["data"]["chunksize"]),

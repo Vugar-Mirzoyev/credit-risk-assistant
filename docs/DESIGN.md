@@ -156,7 +156,6 @@ credit-risk-assistant/
 ├── README.md
 ├── requirements.txt          # pinned to the versions results were produced on
 ├── pyproject.toml            # pytest configuration
-├── setup.ps1                 # Windows scaffold
 ├── config/
 │   ├── config.yaml           # every tunable number lives here
 │   └── column_availability.csv  # D2 audit, maintained by hand
@@ -220,7 +219,9 @@ Layer 2 adds `src/rag/` to the same repository. One system, not two projects.
 - Errors are raised with actionable messages and never swallowed
 - Tests are required for `target.py`, `woe.py` and `split.py`, the three places
   where a silent bug corrupts every result downstream
-- Parquet, not CSV, for intermediate data
+- Parquet, not CSV, if intermediate data is ever written. Layer 1 writes none:
+  the whole path runs from the raw extract in about four minutes, and a cached
+  intermediate would be one more thing that can silently go stale
 
 ---
 
