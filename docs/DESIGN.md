@@ -187,10 +187,17 @@ Three retrievers, reported together: **BM25**, **dense embeddings**, and a
 
 An embedding retriever reported on its own is unfalsifiable. Regulatory text is
 full of exact terms of art - "adverse action", "empirically derived", "annual
-percentage rate" - and on that kind of language a keyword index is often the
-stronger one. If BM25 wins, that is the result; it is more informative than a
-vector store with no comparison, and it is the same reasoning that makes D4
-report champion and challenger rather than a winner.
+percentage rate" - and the expectation written here before anything was
+measured was that a keyword index would often be the stronger one on that kind
+of language. It was not: measured on the evaluation set, dense retrieval
+reaches recall@5 of 0.756 against BM25's 0.659, and it wins on the lexical
+questions too, which is where the keyword index was most expected to hold.
+Hybrid fusion is best on paraphrased questions alone.
+
+The prediction being wrong is the reason the comparison is in the design at
+all. The same reasoning makes D4 report champion and challenger rather than a
+winner: a number with nothing beside it cannot be judged, including by the
+person who produced it.
 
 ### D8 — The evaluation set is hand-built, and its failures are listed
 
