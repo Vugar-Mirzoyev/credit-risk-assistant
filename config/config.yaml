@@ -117,6 +117,19 @@ rag:
     cache_path: data/interim/embeddings
     report_path: reports/03_retrieval.md
     questions_path: config/retrieval_questions.yaml
+  answer:
+    # D11. Provider-agnostic: any OpenAI-compatible endpoint. The key is read
+    # from the environment and never stored, and every retrieval figure in the
+    # project stands without one.
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+    api_key_env: LLM_API_KEY
+    temperature: 0.0
+    max_tokens: 600
+    # Passages are truncated to this before being put in the prompt, so the
+    # context window is a stated number rather than whatever the corpus
+    # happened to produce.
+    max_context_words: 1200
 
 split:
   # Out-of-time. Chosen from the quarterly table in reports/01_profile.md:

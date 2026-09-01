@@ -95,10 +95,21 @@ class RetrievalConfig:
 
 
 @dataclass(frozen=True)
+class AnswerConfig:
+    base_url: str
+    model: str
+    api_key_env: str
+    temperature: float
+    max_tokens: int
+    max_context_words: int
+
+
+@dataclass(frozen=True)
 class RagConfig:
     corpus_path: Path
     chunk: ChunkConfig
     retrieval: RetrievalConfig
+    answer: AnswerConfig
 
 
 @dataclass(frozen=True)
@@ -216,6 +227,14 @@ class Config:
                     cache_path=_resolve(raw["rag"]["retrieval"]["cache_path"]),
                     report_path=_resolve(raw["rag"]["retrieval"]["report_path"]),
                     questions_path=_resolve(raw["rag"]["retrieval"]["questions_path"]),
+                ),
+                answer=AnswerConfig(
+                    base_url=raw["rag"]["answer"]["base_url"],
+                    model=raw["rag"]["answer"]["model"],
+                    api_key_env=raw["rag"]["answer"]["api_key_env"],
+                    temperature=float(raw["rag"]["answer"]["temperature"]),
+                    max_tokens=int(raw["rag"]["answer"]["max_tokens"]),
+                    max_context_words=int(raw["rag"]["answer"]["max_context_words"]),
                 ),
             ),
             split=SplitConfig(
