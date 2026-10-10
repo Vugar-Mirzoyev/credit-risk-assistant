@@ -1,0 +1,37 @@
+# D13. The factor named to an applicant when a scorecard feature is among the
+# principal reasons for their score.
+#
+# Each entry names the factor rather than passing a verdict on it. Regulation B
+# commentary 9(b)(2)-3 allows exactly that: a notice may say "length of
+# residence" rather than "too short a period of residence". Commentary
+# 9(b)(2)-2 requires the reasons to "relate to and accurately describe the
+# factors actually considered or scored", so every feature the champion scores
+# needs an entry, and the service refuses to start if one is missing. A
+# retrained champion with a new feature therefore cannot go out with a reason
+# nobody wrote.
+#
+# Definitions follow the LendingClub data dictionary.
+
+term: Loan term
+fico_range_low: Credit score at application
+loan_to_income: Loan amount relative to income
+acc_open_past_24mths: Number of accounts opened in the past 24 months
+dti: Debt-to-income ratio
+num_tl_op_past_12m: Number of accounts opened in the past 12 months
+bc_open_to_buy: Available credit on bankcard accounts
+verification_status: Income verification status
+avg_cur_bal: Average current balance across accounts
+mths_since_recent_inq: Time since most recent credit inquiry
+mort_acc: Number of mortgage accounts
+num_actv_rev_tl: Number of active revolving accounts
+mths_since_recent_bc: Time since most recent bankcard account was opened
+open_rv_24m: Number of revolving accounts opened in the past 24 months
+annual_inc: Annual income
+all_util: Balance relative to credit limit across all accounts
+mo_sin_old_rev_tl_op: Age of oldest revolving account
+inq_last_6mths: Number of credit inquiries in the past 6 months
+home_ownership: Home ownership status
+inq_last_12m: Number of credit inquiries in the past 12 months
+open_il_12m: Number of instalment accounts opened in the past 12 months
+max_bal_bc: Maximum balance owed on revolving accounts
+purpose: Loan purpose

@@ -175,3 +175,26 @@ model:
     base_score: 600
     base_odds: 50
     pdo: 20
+
+serving:
+  # D12. Written by scripts/train_models.py and committed, so the service and
+  # its container build from a clone without the 1.6 GB extract.
+  artefact_path: models/champion.json
+  # D13. One plain-language factor name per scorecard feature. The service
+  # refuses to start if the champion carries a feature with no entry here.
+  reason_texts_path: config/reason_texts.yaml
+  # Regulation B commentary 9(b)(2)-1: "disclosure of more than four reasons
+  # is not likely to be helpful to the applicant."
+  max_reasons: 4
+
+tracking:
+  # D15. A record of every training run, not a source of any reported figure:
+  # those still come from the documented commands. Off means train_models.py
+  # runs exactly as it did before tracking existed.
+  enabled: true
+  # A SQLite store rather than plain files, because the model registry needs a
+  # database behind it.
+  store_path: mlruns/mlflow.db
+  artifact_path: mlruns/artifacts
+  experiment: credit-risk-scoring
+  registered_model: credit-risk-champion

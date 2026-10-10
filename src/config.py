@@ -147,6 +147,22 @@ class ModelConfig:
 
 
 @dataclass(frozen=True)
+class ServingConfig:
+    artefact_path: Path
+    reason_texts_path: Path
+    max_reasons: int
+
+
+@dataclass(frozen=True)
+class TrackingConfig:
+    enabled: bool
+    store_path: Path
+    artifact_path: Path
+    experiment: str
+    registered_model: str
+
+
+@dataclass(frozen=True)
 class Config:
     data: DataConfig
     target: TargetConfig
@@ -158,6 +174,8 @@ class Config:
     split: SplitConfig
     woe: WoeConfig
     model: ModelConfig
+    serving: ServingConfig
+    tracking: TrackingConfig
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> "Config":
@@ -259,6 +277,18 @@ class Config:
                     base_odds=float(raw["model"]["scorecard"]["base_odds"]),
                     pdo=float(raw["model"]["scorecard"]["pdo"]),
                 ),
+            ),
+            serving=ServingConfig(
+                artefact_path=_resolve(raw["serving"]["artefact_path"]),
+                reason_texts_path=_resolve(raw["serving"]["reason_texts_path"]),
+                max_reasons=int(raw["serving"]["max_reasons"]),
+            ),
+            tracking=TrackingConfig(
+                enabled=bool(raw["tracking"]["enabled"]),
+                store_path=_resolve(raw["tracking"]["store_path"]),
+                artifact_path=_resolve(raw["tracking"]["artifact_path"]),
+                experiment=raw["tracking"]["experiment"],
+                registered_model=raw["tracking"]["registered_model"],
             ),
         )
 

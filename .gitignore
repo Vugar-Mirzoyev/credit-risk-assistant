@@ -4,10 +4,14 @@ data/interim/*
 data/processed/*
 !data/**/.gitkeep
 
-# Model artefacts
+# Model artefacts. models/champion.json is the exception and is committed:
+# it is what the service and its container load (D12).
 *.joblib
 *.pkl
 *.onnx
+
+# Run tracking and the model registry (D15). Local to whoever trained.
+mlruns/
 
 # Vector stores and embedding caches (layer 2). Derived from the committed
 # corpus by a documented command, so there is nothing to preserve here.

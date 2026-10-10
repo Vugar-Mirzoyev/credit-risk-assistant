@@ -27,5 +27,14 @@ sentence-transformers==6.0.1
 torch==2.13.0           # pulled in by sentence-transformers; CPU is enough here
 transformers==5.16.1
 
+# Serving and tracking, D12-D15. The container installs requirements-serve.txt
+# instead of this file; these are here so the tests and the training run
+# cover the same code the container runs.
+fastapi==0.143.0
+pydantic==2.14.0
+uvicorn==0.54.0
+mlflow==3.17.0          # run tracking and the model registry
+
 # Tests
 pytest==9.1.1
+httpx==0.28.1           # fastapi.testclient
