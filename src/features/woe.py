@@ -69,6 +69,10 @@ WOE_PREFIX = "woe_"
 #: about.
 UNSEEN_WOE = 0.0
 
+#: Returned by `FeatureBinning.codes` for a value with no bin: a category the
+#: training split never contained, or a missing value where training had none.
+UNSEEN_CODE = -1
+
 MISSING_LABEL = "Missing"
 
 
@@ -101,27 +105,41 @@ class FeatureBinning:
     category_map: dict[str, int] = field(default_factory=dict)
     missing_index: int | None = None
 
-    def transform(self, values: pd.Series) -> tuple[np.ndarray, int]:
-        """Map values to WOE. Returns the WOE array and the unseen-value count."""
-        woes = np.array([b.woe for b in self.bins], dtype="float64")
-        out = np.full(len(values), UNSEEN_WOE, dtype="float64")
+    def codes(self, values: pd.Series) -> np.ndarray:
+        """The bin each value falls in, or `UNSEEN_CODE` where there is none.
+
+        Separate from `transform` because a service scoring one application
+        needs to know which bin it landed in, not only that bin's WOE: the bin
+        is what carries the points and the label an applicant is shown.
+        """
+        out = np.full(len(values), UNSEEN_CODE, dtype="int64")
         missing = values.isna().to_numpy()
 
         if self.kind == "numeric":
             numeric = pd.to_numeric(values, errors="coerce").to_numpy(dtype="float64")
-            codes = np.searchsorted(np.asarray(self.edges), numeric, side="right") - 1
-            codes = np.clip(codes, 0, len(self.edges) - 2)
-            out[~missing] = woes[codes[~missing]]
-            unseen = 0
+            found = np.searchsorted(np.asarray(self.edges), numeric, side="right") - 1
+            found = np.clip(found, 0, len(self.edges) - 2)
+            out[~missing] = found[~missing]
         else:
-            keys = values.astype("str")
-            codes = keys.map(self.category_map)
-            known = codes.notna().to_numpy() & ~missing
-            out[known] = woes[codes[known].to_numpy(dtype="int64")]
-            unseen = int((~known & ~missing).sum())
+            mapped = values.astype("str").map(self.category_map)
+            known = mapped.notna().to_numpy() & ~missing
+            out[known] = mapped[known].to_numpy(dtype="int64")
 
         if self.missing_index is not None:
-            out[missing] = woes[self.missing_index]
+            out[missing] = self.missing_index
+        return out
+
+    def transform(self, values: pd.Series) -> tuple[np.ndarray, int]:
+        """Map values to WOE. Returns the WOE array and the unseen-value count."""
+        woes = np.array([b.woe for b in self.bins], dtype="float64")
+        codes = self.codes(values)
+        found = codes != UNSEEN_CODE
+        out = np.full(len(values), UNSEEN_WOE, dtype="float64")
+        out[found] = woes[codes[found]]
+        # Unseen means a category value training never contained. A missing
+        # value with no missing bin is uncoded too, but it is not a new
+        # category, and counting it as one would misreport the test split.
+        unseen = int((~found & ~values.isna().to_numpy()).sum())
         return out, unseen
 
 
