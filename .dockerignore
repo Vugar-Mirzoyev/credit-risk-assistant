@@ -1,0 +1,11 @@
+# Everything is excluded except what the Dockerfile copies. A whitelist, for
+# the same reason as the column audit in D2: a blacklist fails silently on the
+# file nobody thought of, and the build context must never carry data or
+# local state.
+*
+!requirements-serve.txt
+!src/
+!config/config.yaml
+!config/reason_texts.yaml
+!models/champion.json
+**/__pycache__

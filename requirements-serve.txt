@@ -1,0 +1,11 @@
+# The scoring service only (D12). What the container installs.
+#
+# No scikit-learn, LightGBM or torch: the champion is a points table once it is
+# exported, and scoring it is a lookup and a sum. Pinned to the versions in
+# requirements.txt so the service and the training run share numpy and pandas.
+numpy==2.5.2
+pandas==3.0.5
+pyyaml==6.0.3
+fastapi==0.143.0
+pydantic==2.14.0
+uvicorn==0.54.0
