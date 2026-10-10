@@ -20,6 +20,14 @@ The leaky pair is fitted deliberately and reported, never deployed. Its point
 is that it looks excellent. A reviewer who has only seen the clean numbers has
 no way to judge whether they are good; seeing both is what makes the audit
 worth anything.
+
+The champion is then exported to `models/champion.json` for the scoring
+service (D12), and the whole holdout is scored again through the service's
+own code path. The export is refused unless that reproduces the fitted
+scorecard: a file the service would score differently from the validated
+model is not the validated model. Finally the run is recorded and the
+champion registered (D15), unless tracking is switched off in the
+configuration.
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import numpy as np
 import pandas as pd
 
 from src.config import Config
@@ -41,6 +50,15 @@ from src.features.woe import WOE_PREFIX
 from src.models.challenger import fit_challenger
 from src.models.scorecard import GRADE_FAMILY, fit_scorecard, without_grade_family
 from src.pipeline import Dataset, prepare, prepare_leaky
+from src.serving.artefact import champion_from_dict, export_champion, write_champion
+from src.serving.score import score_frame
+
+CHAMPION = "champion, no grade"
+
+#: Largest difference in predicted PD allowed between the fitted scorecard and
+#: the exported file scored through `src/serving`. Floating-point noise only:
+#: this is a check that the two are the same model, not a modelling choice.
+PARITY_TOLERANCE = 1e-9
 
 
 def _row(name: str, kind: str, features: int, y_train, p_train, y_test, p_test):
@@ -263,12 +281,109 @@ def write_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def export_checked(
+    data: Dataset,
+    clean: pd.DataFrame,
+    artefacts: dict,
+    *,
+    cutoff: object,
+    code: dict[str, str],
+) -> tuple[dict, float]:
+    """D12: the champion as a file, proven to score as the fitted model does.
+
+    The holdout goes through `score_frame` from raw columns - derivation, bin
+    lookup and points included - and is compared with the scorecard's own
+    predictions on the WOE frame. Anything beyond floating-point noise means
+    the service would not be scoring the model this report validates.
+    """
+    card = artefacts[CHAMPION][0]
+    row = clean.set_index("model").loc[CHAMPION]
+    issued = data.train[data.date_column]
+    metadata = {
+        "trained_on": {
+            "split_cutoff": str(cutoff),
+            "train_rows": int(len(data.train)),
+            "train_from": str(issued.min().date()),
+            "train_to": str(issued.max().date()),
+            "holdout_rows": int(len(data.test)),
+        },
+        "holdout": {
+            "gini": float(row["test_gini"]),
+            "auc": float(row["test_auc"]),
+            "ks": float(row["test_ks"]),
+            "brier": float(row["brier"]),
+            "level_error": float(row["level_error"]),
+            "calibration_slope": float(row["calib_slope"]),
+            "max_quarterly_psi": float(artefacts["psi"]["psi"].max()),
+        },
+        "code": code,
+        "validation_report": "reports/model_validation.md",
+    }
+    payload = export_champion(card, data.binner, metadata=metadata)
+
+    served = score_frame(champion_from_dict(payload), data.test)
+    expected = card.predict_proba(data.woe_test)
+    gap = float(np.max(np.abs(served.probability_of_default - expected)))
+    if gap > PARITY_TOLERANCE:
+        raise RuntimeError(
+            f"The exported champion scores the holdout up to {gap:.3g} away "
+            f"from the fitted scorecard (tolerance {PARITY_TOLERANCE:g}). The "
+            "service would not be scoring the validated model; nothing has "
+            "been written."
+        )
+    return payload, gap
+
+
+def track(
+    config: Config,
+    clean: pd.DataFrame,
+    leaky: pd.DataFrame,
+    artefacts: dict,
+    payload: dict,
+    parity_gap: float,
+    files: list[Path],
+):
+    """D15: record the run and register the champion it produced."""
+    from src.tracking import flatten, metrics_from_table, track_training_run
+
+    params: dict[str, str] = {}
+    for section in ("split", "target", "woe", "model", "challenger", "explain"):
+        params.update(flatten(section, getattr(config, section)))
+
+    metrics = metrics_from_table(clean)
+    metrics.update(metrics_from_table(leaky))
+    metrics["champion.max_quarterly_psi"] = float(artefacts["psi"]["psi"].max())
+    metrics["champion.serving_parity_max_abs_error"] = parity_gap
+
+    code = payload["metadata"]["code"]
+    return track_training_run(
+        config.tracking,
+        run_name=f"champion {payload['version']}",
+        params=params,
+        metrics=metrics,
+        artefacts=files,
+        champion_path=config.serving.artefact_path,
+        tags={
+            "champion_version": payload["version"],
+            "git_commit": code["commit"],
+            "git_dirty": code["dirty"],
+        },
+    )
+
+
 def main() -> None:
     config = Config.load()
     data = prepare(config)
 
     print("\nfitting clean models")
     clean, artefacts = evaluate_all(data, config)
+
+    print("\nexporting the champion and checking it scores as fitted")
+    from src.tracking import code_version
+
+    payload, parity_gap = export_checked(
+        data, clean, artefacts, cutoff=config.split.cutoff_date, code=code_version()
+    )
     data_summary = data.summary()
     # Freed before the leaky path loads its own, wider frame. Holding both at
     # once is unnecessary, and this extract is large enough already.
@@ -282,10 +397,30 @@ def main() -> None:
         data_summary, clean, leaky, artefacts, report_path,
         config_top=config.explain.top_features,
     )
-    print(f"\nwrote {report_path}\n")
+    write_champion(payload, config.serving.artefact_path)
+    print(f"\nwrote {report_path}")
+    print(
+        f"wrote {config.serving.artefact_path}, version {payload['version']}, "
+        f"serving parity {parity_gap:.2e}\n"
+    )
     print(clean.to_string(index=False))
     print()
     print(leaky.to_string(index=False))
+
+    if config.tracking.enabled:
+        run = track(
+            config, clean, leaky, artefacts, payload, parity_gap,
+            files=[
+                report_path,
+                config.leakage.audit_path,
+                PROJECT_ROOT / "config" / "config.yaml",
+                config.serving.artefact_path,
+            ],
+        )
+        print(
+            f"\ntracked run {run.run_id}; registered "
+            f"{config.tracking.registered_model} version {run.registered_version}"
+        )
 
 
 if __name__ == "__main__":
