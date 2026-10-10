@@ -238,16 +238,140 @@ otherwise.
 
 ---
 
+## 2c. Serving decisions
+
+Layer 1 ends with a validated scorecard and a report about it. A model a
+lender could use also needs a way to be asked for a score, an answer to "why"
+attached to every score, and a record of which run produced it. Four more
+decisions, in the same form. None of them changes a reported figure, and none
+is a third layer: they package Layer 1 for use.
+
+### D12 — The champion is served from an exported file, through the training code
+
+`scripts/train_models.py` writes the champion to `models/champion.json`: every
+bin with its edges or categories, its WOE, its training counts and its points,
+plus the coefficients, the intercept and the scaling. The service loads that
+file and rebuilds the same `FeatureBinning` objects `WoeBinner` fitted, so a
+value is binned at serving time by the code that binned it in training.
+Training-serving skew - two implementations of one transform drifting apart -
+needs two implementations, and there is one.
+
+JSON rather than a pickle. A pickle executes code when it is loaded and cannot
+be reviewed; this file can be read and diffed like the points table it is, and
+the service never imports scikit-learn, because a logistic regression over WOE
+is a dot product once its coefficients are written down. The version is a hash
+of the model content and nothing else, so a refit that changes nothing keeps
+its version and any change to a bin produces a new one. A file whose content
+no longer matches its version is refused.
+
+The export is checked before it is written. The whole holdout is scored again
+through the service's code, from raw columns with the derived features
+recomputed, and compared with the fitted scorecard's own predictions. The
+script refuses to write the file if any probability differs by more than
+1e-9. Measured on this extract, over 282,970 loans, the largest difference
+is 3.1e-16: the service and the fitted scorecard are the same model.
+
+The file is committed. It holds aggregate counts per bin and no loan-level
+record, and committing it is what lets the service, its container and the CI
+build run from a clone without the extract.
+
+### D13 — Every score carries its reasons, chosen the way Regulation B describes
+
+Regulation B requires a lender to state the principal reasons for an adverse
+action, and its official interpretation (Supplement I, comment 9(b)(2)-5)
+names two acceptable ways to select them from a scoring system: the factors on
+which the applicant fell furthest below the average of applicants at or just
+above the minimum passing score, or below the average of all applicants.
+
+The service uses the second. The first needs a passing score, which is a
+cutoff, and a cutoff is a decision about risk appetite and pricing that this
+project has no basis to make. The service therefore returns a probability, a
+score and the reasons, and never approve or decline. Reasons are returned for
+every application: they are what a notice would cite if a lender, applying
+its own cutoff, declined it.
+
+The all-applicants averages are computed at export from the training counts
+each bin already carries. At most four reasons are returned - comment
+9(b)(2)-1: "disclosure of more than four reasons is not likely to be helpful
+to the applicant" - each named by a plain-language factor from
+`config/reason_texts.yaml`. The service refuses to start if a scored feature
+has no entry, because a feature that can cost an applicant points has to be
+nameable in a notice (comment 9(b)(2)-2).
+
+This is where the two layers meet. Layer 2 retrieves the commentary; the
+service implements it.
+
+### D14 — The input contract comes from the champion
+
+The request schema is generated from the exported file at start-up. A
+hand-written schema is a second copy of the model's inputs, and the day a
+retrained champion gains or loses a feature the two disagree without anything
+failing.
+
+Two rules follow from training rather than from preference. A field may be
+omitted only if training contained missing values for every feature it feeds,
+because only then is there evidence for what missing means. A category is
+accepted only if training saw it. In a batch, `WoeBinner` gives an unseen
+value the neutral WOE and counts it in the transform report; one application
+has no report to count it in, so it is refused with a 422 naming the field and
+the reason.
+
+Derived features need a third rule. Their inputs are always required, because
+a derived feature's missing bin records arithmetic that came out undefined in
+training, not an input that was absent: the champion's loan-to-income has a
+missing bin because the extract contains incomes of zero. An application with
+a zero income lands in that bin, exactly where training put the same case; an
+application with no loan amount is refused, because scoring it there would
+treat a missing field as a zero income. Where a derived feature has no missing
+bin, an undefined value is refused like any other.
+
+Logs carry the request id, status, latency and model version, and never an
+applicant's fields. A scoring log is the first place personal data leaks from,
+and nothing in operating the service needs the inputs written down.
+
+### D15 — Every training run is tracked, and the champion is registered
+
+Each run of `train_models.py` is recorded in MLflow, with a SQLite store under
+`mlruns/` because the model registry needs a database behind it. Recorded:
+every configuration value that moves a number, as parameters; every metric of
+all six models, the champion's worst quarterly PSI and the parity error, as
+metrics; the validation report, the column audit, the configuration and the
+champion file, as artefacts - the audit trail attached to the run it
+explains. The champion is registered as a model version that scores through
+`src/serving`, so the registry cannot hold a second scoring implementation
+either. The commit the run was made from is recorded, and so is whether the
+working tree had uncommitted changes.
+
+Tracking is a record, not a source of numbers. Every reported figure still
+comes from a documented command, and `tracking.enabled: false` leaves the
+script doing exactly what it did before tracking existed.
+
+Continuous integration runs the test suite on every push, then builds the
+container, waits for it to report healthy, scores an example application over
+HTTP and checks that an incomplete one is refused. Neither job needs the
+extract.
+
+---
+
 ## 3. Repository layout
 
 ```
 credit-risk-assistant/
 ├── README.md
 ├── requirements.txt          # pinned to the versions results were produced on
+├── requirements-serve.txt    # D12: what the container installs, nothing more
 ├── pyproject.toml            # pytest configuration
+├── Dockerfile                # the scoring service
+├── .github/workflows/ci.yml  # tests, then the container scored over HTTP
 ├── config/
 │   ├── config.yaml           # every tunable number lives here
-│   └── column_availability.csv  # D2 audit, maintained by hand
+│   ├── column_availability.csv  # D2 audit, maintained by hand
+│   └── reason_texts.yaml     # D13: the factor named for each scored feature
+├── models/
+│   └── champion.json         # D12: committed, written by train_models.py
+├── examples/
+│   └── application.json      # one application, for the README and CI
+├── mlruns/                   # D15, not tracked: run store and model registry
 ├── data/                     # not tracked
 │   ├── raw/                  # accepted_2007_to_2018Q4.csv (~1.6 GB)
 │   ├── interim/
@@ -273,13 +397,18 @@ credit-risk-assistant/
 │   │   ├── metrics.py        # D5: Gini, KS, AUC, calibration
 │   │   ├── stability.py      # PSI, CSI
 │   │   └── explain.py        # SHAP
-│   └── rag/                  # Layer 2
-│       ├── corpus.py         # D6: eCFR XML -> citable sections
-│       ├── chunk.py          # D9
-│       ├── embed.py          # D10
-│       ├── retrieve.py       # D7: BM25, dense, hybrid
-│       ├── evaluate.py       # D8: recall@k, MRR, RAGAS
-│       └── answer.py         # D11
+│   ├── rag/                  # Layer 2
+│   │   ├── corpus.py         # D6: eCFR XML -> citable sections
+│   │   ├── chunk.py          # D9
+│   │   ├── embed.py          # D10
+│   │   ├── retrieve.py       # D7: BM25, dense, hybrid
+│   │   ├── evaluate.py       # D8: recall@k, MRR, RAGAS
+│   │   └── answer.py         # D11
+│   ├── serving/
+│   │   ├── artefact.py       # D12: export, load, version by content
+│   │   ├── score.py          # D13, D14: score, reasons, input contract
+│   │   └── api.py            # FastAPI: /score, /model, /health
+│   └── tracking.py           # D15: MLflow run tracking and registry
 ├── scripts/
 │   ├── profile_data.py       # produces reports/01_profile.md
 │   ├── train_models.py       # produces reports/model_validation.md
@@ -294,7 +423,11 @@ credit-risk-assistant/
 │   ├── test_woe.py
 │   ├── test_scorecard.py
 │   ├── test_challenger.py
-│   └── test_metrics.py
+│   ├── test_metrics.py
+│   ├── test_artefact.py
+│   ├── test_score.py
+│   ├── test_api.py
+│   └── test_tracking.py
 └── reports/
     ├── 01_profile.md
     ├── column_profile.csv
@@ -359,6 +492,21 @@ The sixth is the one Layer 1 could not offer: the extract it depends on is
 1.6 GB and cannot be committed. The policy corpus is 4.6 MB of public-domain
 regulation, so Layer 2 has no excuse.
 
+Serving (D12-D15) is complete when a reviewer can:
+
+1. Start the service from a clone with one documented command, or the
+   container with two, without the extract
+2. Score an application and see the probability, the score, the points per
+   attribute and the reasons
+3. See the parity between the service and the fitted scorecard measured over
+   the whole holdout, not assumed
+4. Read the method behind the reasons and the regulation it comes from
+5. Be refused, with the field and the reason, when an application cannot be
+   scored honestly
+6. Find the run, the configuration and the code version behind any champion
+   version
+7. See the tests and the container pass in CI, without the extract
+
 ---
 
 ## 6. Known limitations
@@ -380,3 +528,18 @@ regulation, so Layer 2 has no excuse.
   driven by the distributions. WOE keeps them usable by giving missingness its
   own bin; a model that leant on them heavily would still be resting on a field
   that did not exist for most of its training data.
+- The service has no authentication, rate limiting or TLS. It is a scoring
+  component meant to sit behind a gateway that provides them, not a public
+  endpoint.
+- Stability is measured at training time, PSI by quarter on the holdout, and
+  not on live traffic. The service deliberately logs no inputs (D14), so
+  monitoring live drift would need a separate store of scores, and
+  characteristic drift a consented store of inputs. Neither exists here.
+- The reasons follow the all-applicants method in Regulation B's commentary.
+  Whether a given lender's notices meet the regulation is a compliance
+  determination about that lender, not a property of this code.
+- LendingClub carries no protected attributes, so disparate impact cannot be
+  measured on this extract. What can be done is done in the audit: `zip_code`
+  is excluded on redlining grounds (D2), and none of the champion's features
+  is itself a basis Regulation B prohibits. Whether any of them acts as a
+  proxy for one cannot be tested without the attributes it would proxy for.

@@ -57,6 +57,70 @@ Every question the best retriever still misses is listed by name in
 The corpus is committed, so this runs from a clone with no download and no API
 key.
 
+## Serving
+
+The champion is exported to [`models/champion.json`](models/champion.json) and
+served over HTTP. One application goes in; out come the probability of
+default, the score, the points each attribute contributed, and the principal
+reasons - the factors on which the applicant fell furthest below the average
+applicant, one of the two selection methods Regulation B's own commentary names
+(Supplement I, comment 9(b)(2)-5). Layer 2 retrieves that commentary; the
+service implements it.
+
+```powershell
+python -m uvicorn src.serving.api:create_app --factory --port 8000
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/score -ContentType "application/json" -InFile examples/application.json
+```
+
+For [`examples/application.json`](examples/application.json), a constructed
+applicant rather than a real one: probability of default 0.345, score 505.6,
+and these reasons:
+
+| Reason | Applicant's bin | Points | Average | Shortfall |
+|---|---|---:|---:|---:|
+| Home ownership status | RENT, ANY | -4.16 | 0.19 | 4.34 |
+| Number of accounts opened in the past 24 months | [6, 7) | -2.66 | 0.40 | 3.06 |
+| Balance relative to credit limit across all accounts | [64, 72) | -2.89 | 0.07 | 2.96 |
+| Debt-to-income ratio | [22.56, 25.61) | -2.08 | 0.30 | 2.38 |
+
+Three properties are checked rather than claimed:
+
+- **The service is the validated model.** Before the file is written, the whole
+  holdout is scored again through the service's own code, from raw columns, and
+  compared with the fitted scorecard. Over 282,970 loans the largest difference
+  in probability is 3.1e-16; above 1e-9 the file is not written at all.
+- **The request schema is the model's.** It is generated from the champion:
+  categorical fields accept only the categories training saw - exactly as the
+  extract spells them, including the leading space in `" 36 months"` - and a
+  field may be omitted only where training contained missing values for it.
+  Anything else is refused with a 422 that names the field, not scored as a
+  guess.
+- **Logs carry no applicant data.** Request id, status, latency and model
+  version, nothing an applicant typed.
+
+The service returns no approve or decline. That needs a cutoff, and a cutoff is
+a lender's decision about risk appetite, not something this data can settle.
+
+The container holds six pinned libraries and the committed champion - no
+scikit-learn, no LightGBM, no torch - and runs as a non-root user:
+
+```powershell
+docker build -t credit-risk-scoring .
+docker run --rm -p 8000:8000 credit-risk-scoring
+```
+
+Every run of `train_models.py` is recorded in MLflow - the configuration, the
+metrics of all six models, the validation report and the column audit - and
+the champion is registered as a model version that scores through the same
+code as the service:
+
+```powershell
+python -m mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db
+```
+
+CI runs the tests on every push, then builds the container, waits for it to
+report healthy and scores the example over HTTP. Neither job needs the extract.
+
 ## The three mistakes this is built to avoid
 
 **Counting unfinished loans.** 912,569 of the 2,260,668 loans in the extract -
@@ -84,21 +148,26 @@ so the holdout influences nothing at all - not even the number of trees.
 ## What is in here
 
 ```
-config/    config.yaml, the 151-row column audit, 41 retrieval questions
+config/    config.yaml, the 151-row column audit, 41 retrieval questions,
+           the reason text for every scored feature
 data/      policies/ - three regulations, committed, public domain
+models/    champion.json - the exported champion the service loads
 src/       data (load, target, leakage, split), features (build, woe),
            models (scorecard, challenger), evaluation (metrics, stability,
-           explain), rag (corpus, chunk, retrieve, embed, evaluate), pipeline
+           explain), rag (corpus, chunk, retrieve, embed, evaluate),
+           serving (artefact, score, api), tracking, pipeline
 scripts/   profile_data.py, train_models.py, fetch_policies.py,
            evaluate_retrieval.py
 reports/   01_profile.md, model_validation.md, 03_retrieval.md, figures
-tests/     one file per module, 230 tests
-docs/      DESIGN.md - the eleven decisions, and the reasoning behind them
+examples/  application.json - one constructed application
+tests/     one file per module, 285 tests
+docs/      DESIGN.md - the fifteen decisions, and the reasoning behind them
+Dockerfile, requirements-serve.txt, .github/workflows/ci.yml
 ```
 
-Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the eleven decisions
-that shape everything else - five for the model, six for retrieval - and the
-limitations they do not cover.
+Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the fifteen
+decisions that shape everything else - five for the model, six for retrieval,
+four for serving - and the limitations they do not cover.
 
 ## Setup
 
@@ -121,9 +190,12 @@ python scripts/evaluate_retrieval.py
 ```
 
 The first writes the data profile and the per-column statistics the audit is
-made against; the second fits six models and writes the validation report; the
-third sweeps the chunking strategies and scores the three retrievers. Every
-figure in this README comes from one of those three commands.
+made against; the second fits six models, writes the validation report,
+exports the champion after checking it scores as fitted, and records the run;
+the third sweeps the chunking strategies and scores the three retrievers. Every
+figure in this README comes from one of those three commands, except the
+serving example, which comes from the service started on the champion the
+second one writes.
 
 Only the first two need the LendingClub extract. The retrieval evaluation runs
 on the committed corpus.
