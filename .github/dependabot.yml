@@ -1,0 +1,27 @@
+# Three things in this repository are pinned to an exact version, and a pin
+# that nobody revisits turns into a known vulnerability with a date on it.
+# Dependabot is what revisits them.
+version: 2
+updates:
+  # requirements.txt and requirements-serve.txt. Every figure in reports/ was
+  # produced on these exact versions, so routine version bumps are switched
+  # off (limit 0): a pull request here is raised only for a published security
+  # advisory, and merging one is a decision to re-run the validation.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
+  # The commit hashes in .github/workflows/ci.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # The base image digest in the Dockerfile. This is how the scoring container
+  # receives operating-system patches now that the tag no longer floats.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
