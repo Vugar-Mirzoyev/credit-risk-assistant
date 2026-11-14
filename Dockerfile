@@ -10,7 +10,7 @@
 # of this file would otherwise stand on different images. A digest also
 # stops security patches arriving on their own, which is why Dependabot
 # watches this line (.github/dependabot.yml).
-FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
