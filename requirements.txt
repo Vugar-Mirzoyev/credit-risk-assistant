@@ -33,7 +33,7 @@ transformers==5.16.1
 fastapi==0.143.0
 pydantic==2.14.0
 uvicorn==0.54.0
-mlflow==3.17.0          # run tracking and the model registry
+mlflow==3.17.2          # run tracking and the model registry
 
 # Tests
 pytest==9.1.1
