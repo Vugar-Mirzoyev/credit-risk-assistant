@@ -53,6 +53,37 @@ def test_the_request_id_is_echoed(client, fitted):
     assert response.headers["x-request-id"] == "abc123"
 
 
+def test_a_request_id_cannot_forge_log_fields(client, fitted, caplog):
+    forged = "abc status=500 annual_inc=87654"
+
+    with caplog.at_level(logging.INFO, logger="credit_risk.serving"):
+        response = client.post(
+            "/score", json=_application(fitted), headers={"x-request-id": forged}
+        )
+
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert response.headers["x-request-id"] != forged
+    assert f"request_id={response.headers['x-request-id']} " in logged
+    assert "status=500" not in logged and "87654" not in logged
+
+
+def test_a_path_cannot_forge_log_fields(client, caplog):
+    with caplog.at_level(logging.INFO, logger="credit_risk.serving"):
+        response = client.get("/health%20status=200%20annual_inc=87654")
+
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert response.status_code == 404
+    assert "path=(unloggable) status=404" in logged
+    assert "87654" not in logged
+
+
+def test_an_ordinary_path_is_logged_as_sent(client, caplog):
+    with caplog.at_level(logging.INFO, logger="credit_risk.serving"):
+        client.get("/health")
+
+    assert "path=/health status=200" in caplog.records[-1].getMessage()
+
+
 def test_an_unknown_category_is_refused_before_scoring(client, fitted):
     application = _application(fitted)
     application["home_ownership"] = "rent"

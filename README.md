@@ -160,7 +160,7 @@ scripts/   profile_data.py, train_models.py, fetch_policies.py,
            evaluate_retrieval.py
 reports/   01_profile.md, model_validation.md, 03_retrieval.md, figures
 examples/  application.json - one constructed application
-tests/     one file per module, 285 tests
+tests/     one file per module, 288 tests
 docs/      DESIGN.md - the fifteen decisions, and the reasoning behind them
 Dockerfile, requirements-serve.txt, .github/workflows/ci.yml
 ```

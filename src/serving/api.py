@@ -18,12 +18,15 @@ saw, and a field is required exactly when training never saw it missing.
 
 Logs carry the request id, status, latency and model version, and never an
 applicant's fields. A scoring log is the first place personal data leaks from,
-and nothing in operating the service needs the inputs written down.
+and nothing in operating the service needs the inputs written down. The two
+values on the log line a caller chooses, the request id and the path, are
+checked against a fixed alphabet first and replaced when they do not fit.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
 from typing import Any, Literal, Mapping
@@ -51,6 +54,15 @@ REASON_METHOD = (
     "of all training applicants (12 CFR 1002, Supplement I, comment "
     "9(b)(2)-5). At most {n} reasons, per comment 9(b)(2)-1."
 )
+
+#: What a caller-supplied value must look like before it reaches the log. The
+#: request id and the path are both chosen by the client. Written as sent, an
+#: id of "abc status=500" forges a field on the log line, a path can do the
+#: same, and either can carry an applicant's data into a log that promises to
+#: hold none. Anything else is replaced, not escaped: a replaced value cannot
+#: be mistaken for a real one.
+_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_LOGGABLE_PATH = re.compile(r"/[A-Za-z0-9_./-]{0,199}")
 
 
 class AttributeOut(BaseModel):
@@ -106,7 +118,10 @@ def create_app(
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
-        request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
+        supplied = request.headers.get("x-request-id", "")
+        request_id = supplied if _REQUEST_ID.fullmatch(supplied) else uuid.uuid4().hex
+        path = request.url.path
+        logged_path = path if _LOGGABLE_PATH.fullmatch(path) else "(unloggable)"
         started = time.perf_counter()
         response = await call_next(request)
         elapsed = (time.perf_counter() - started) * 1000.0
@@ -114,7 +129,7 @@ def create_app(
         response.headers["x-model-version"] = champion.version
         logger.info(
             "request_id=%s method=%s path=%s status=%s latency_ms=%.2f model=%s",
-            request_id, request.method, request.url.path,
+            request_id, request.method, logged_path,
             response.status_code, elapsed, champion.version,
         )
         return response
