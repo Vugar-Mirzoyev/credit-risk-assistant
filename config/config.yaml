@@ -198,3 +198,20 @@ tracking:
   artifact_path: mlruns/artifacts
   experiment: credit-risk-scoring
   registered_model: credit-risk-champion
+
+scenarios:
+  # D16. Portfolio stress on the out-of-time holdout. A scenario multiplies
+  # every loan's odds of default by one factor, which moves the level of PD and
+  # leaves the ranking alone.
+  # "worst_vintage" is anchored on the data: its multiplier is solved so the
+  # holdout's mean PD equals the highest yearly bad rate in the training
+  # window. "severe" is an assumption, stated as one: odds of default x1.5.
+  severe_odds_multiplier: 1.5
+  # A year needs this many resolved loans to anchor a scenario. 2007 and 2008
+  # carry a few thousand each, and a sampling accident in a year that small
+  # must not set the stress.
+  min_vintage_loans: 20000
+  # Shares of applicants approved, lowest PD first. Simulated side by side,
+  # never chosen: a cutoff is a risk-appetite decision (D13).
+  approval_rates: [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+  report_path: reports/04_portfolio_scenarios.md

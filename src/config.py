@@ -163,6 +163,14 @@ class TrackingConfig:
 
 
 @dataclass(frozen=True)
+class ScenarioConfig:
+    severe_odds_multiplier: float
+    min_vintage_loans: int
+    approval_rates: tuple[float, ...]
+    report_path: Path
+
+
+@dataclass(frozen=True)
 class Config:
     data: DataConfig
     target: TargetConfig
@@ -176,6 +184,7 @@ class Config:
     model: ModelConfig
     serving: ServingConfig
     tracking: TrackingConfig
+    scenarios: ScenarioConfig
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> "Config":
@@ -289,6 +298,12 @@ class Config:
                 artifact_path=_resolve(raw["tracking"]["artifact_path"]),
                 experiment=raw["tracking"]["experiment"],
                 registered_model=raw["tracking"]["registered_model"],
+            ),
+            scenarios=ScenarioConfig(
+                severe_odds_multiplier=float(raw["scenarios"]["severe_odds_multiplier"]),
+                min_vintage_loans=int(raw["scenarios"]["min_vintage_loans"]),
+                approval_rates=tuple(float(r) for r in raw["scenarios"]["approval_rates"]),
+                report_path=_resolve(raw["scenarios"]["report_path"]),
             ),
         )
 

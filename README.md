@@ -34,6 +34,26 @@ Full detail in [`reports/model_validation.md`](reports/model_validation.md);
 the data profile and the column audit are in
 [`reports/01_profile.md`](reports/01_profile.md).
 
+## Portfolio scenarios
+
+The same holdout as a book: 282,970 loans, $4,060.0m lent. Each scenario
+multiplies every loan's odds of default by one factor, so the ranking and Gini
+stay as they are and only the level moves:
+
+| Scenario | Basis | Mean PD | Expected defaulted amount | vs base |
+|---|---|---:|---:|---:|
+| base | champion as fitted | 21.77% | $958.6m | - |
+| worst_vintage | mean PD set to the worst training year (2016, before the cutoff) | 23.14% | $1,016.6m | +6.0% |
+| severe | odds of default x1.5, an assumption | 28.58% | $1,246.0m | +30.0% |
+
+Approving the lowest-PD half instead of everyone lowers the observed bad rate
+from 21.82% to 13.09% and declines 70.0% of the bad loans; the report lists six
+approval rates and recommends none, because a cutoff is a risk-appetite
+decision (D13). The amount is PD x loan amount, an upper bound on loss, since
+repayments and recoveries are post-origination fields. Full tables in
+[`reports/04_portfolio_scenarios.md`](reports/04_portfolio_scenarios.md),
+method in D16.
+
 ## Retrieval
 
 1,114 sections of US consumer lending regulation, 41 hand-written questions,
@@ -154,20 +174,22 @@ data/      policies/ - three regulations, committed, public domain
 models/    champion.json - the exported champion the service loads
 src/       data (load, target, leakage, split), features (build, woe),
            models (scorecard, challenger), evaluation (metrics, stability,
-           explain), rag (corpus, chunk, retrieve, embed, evaluate),
+           explain, scenarios), rag (corpus, chunk, retrieve, embed, evaluate),
            serving (artefact, score, api), tracking, pipeline
 scripts/   profile_data.py, train_models.py, fetch_policies.py,
-           evaluate_retrieval.py
-reports/   01_profile.md, model_validation.md, 03_retrieval.md, figures
+           evaluate_retrieval.py, portfolio_scenarios.py
+reports/   01_profile.md, model_validation.md, 03_retrieval.md,
+           04_portfolio_scenarios.md, figures
 examples/  application.json - one constructed application
-tests/     one file per module, 288 tests
-docs/      DESIGN.md - the fifteen decisions, and the reasoning behind them
+tests/     one file per module, 316 tests
+docs/      DESIGN.md - the sixteen decisions, and the reasoning behind them
 Dockerfile, requirements-serve.txt, .github/workflows/ci.yml
 ```
 
-Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the fifteen
+Start with [`docs/DESIGN.md`](docs/DESIGN.md). It states the sixteen
 decisions that shape everything else - five for the model, six for retrieval,
-four for serving - and the limitations they do not cover.
+four for serving, one for the portfolio - and the limitations they do not
+cover.
 
 ## Setup
 
@@ -187,17 +209,19 @@ not tracked; the loader streams it in chunks and never holds more than about
 python scripts/profile_data.py
 python scripts/train_models.py
 python scripts/evaluate_retrieval.py
+python scripts/portfolio_scenarios.py
 ```
 
 The first writes the data profile and the per-column statistics the audit is
 made against; the second fits six models, writes the validation report,
 exports the champion after checking it scores as fitted, and records the run;
-the third sweeps the chunking strategies and scores the three retrievers. Every
-figure in this README comes from one of those three commands, except the
-serving example, which comes from the service started on the champion the
-second one writes.
+the third sweeps the chunking strategies and scores the three retrievers; the
+fourth scores the holdout through the exported champion and writes the
+portfolio scenarios. Every figure in this README comes from one of those four
+commands, except the serving example, which comes from the service started on
+the champion the second one writes.
 
-Only the first two need the LendingClub extract. The retrieval evaluation runs
+Only the first, second and fourth need the LendingClub extract. The retrieval evaluation runs
 on the committed corpus.
 
 ## Tests

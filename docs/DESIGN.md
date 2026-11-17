@@ -351,6 +351,49 @@ container, waits for it to report healthy, scores an example application over
 HTTP and checks that an incomplete one is refused. Neither job needs the
 extract.
 
+## 2d. Portfolio decision
+
+One more, for the question a risk function asks after validation: what the
+champion implies for the book, not only for each loan.
+
+### D16 — Scenarios stress the level of PD and keep the ranking
+
+`src/evaluation/scenarios.py`, run by `scripts/portfolio_scenarios.py` on the
+out-of-time holdout scored through the committed champion. Nothing is refitted.
+
+A scenario multiplies every loan's odds of default by one factor. That is a
+constant shift of the logit, the same as moving the scorecard's intercept, so
+the order of the loans, Gini, KS and every applicant's points are identical in
+every scenario and only the level moves. Scaling the probability itself would
+not keep that property, and a large enough factor would push it above 1.
+
+Three scenarios, each with its basis written next to it in the report:
+
+- **base** - the champion as fitted;
+- **worst_vintage** - anchored on the data: the multiplier is solved so the
+  holdout's mean PD equals the highest yearly bad rate in the training window,
+  among years with at least `scenarios.min_vintage_loans` resolved loans. The
+  volume floor keeps a small early year from setting the stress through a
+  sampling accident;
+- **severe** - odds of default x1.5. An assumption, and labelled as one.
+
+Each approval rate in `scenarios.approval_rates` approves the lowest-PD share
+of applicants and reports the observed bad rate of that book from the real
+outcomes, the share of all bad loans it declines, and the expected bad rate
+under each scenario. The rates are simulated side by side and none is
+recommended, for the same reason the service returns no decision (D13): a
+cutoff is a risk-appetite decision this project has no basis to make.
+
+Exposure is the loan amount at origination, and the money figure is the
+**expected defaulted amount**, PD x loan amount, not a loss. Principal repaid
+before default and recoveries after it are post-origination fields (D2), so
+loss given default is out of scope and the figure is an upper bound on loss.
+
+The champion's mean PD matches the holdout's bad rate at portfolio level and
+under-predicts in the safest bands (the calibration slope of 0.84 in the
+validation report). A scenario is therefore read as a change from base, not as
+a forecast of the level.
+
 ---
 
 ## 3. Repository layout
@@ -396,7 +439,8 @@ credit-risk-assistant/
 │   ├── evaluation/
 │   │   ├── metrics.py        # D5: Gini, KS, AUC, calibration
 │   │   ├── stability.py      # PSI, CSI
-│   │   └── explain.py        # SHAP
+│   │   ├── explain.py        # SHAP
+│   │   └── scenarios.py      # D16: stress and approval-rate simulation
 │   ├── rag/                  # Layer 2
 │   │   ├── corpus.py         # D6: eCFR XML -> citable sections
 │   │   ├── chunk.py          # D9
@@ -413,7 +457,8 @@ credit-risk-assistant/
 │   ├── profile_data.py       # produces reports/01_profile.md
 │   ├── train_models.py       # produces reports/model_validation.md
 │   ├── fetch_policies.py     # downloads the D6 corpus
-│   └── evaluate_retrieval.py # produces reports/03_retrieval.md
+│   ├── evaluate_retrieval.py # produces reports/03_retrieval.md
+│   └── portfolio_scenarios.py # produces reports/04_portfolio_scenarios.md
 ├── tests/                    # one file per module
 │   ├── test_load.py
 │   ├── test_target.py
@@ -424,6 +469,7 @@ credit-risk-assistant/
 │   ├── test_scorecard.py
 │   ├── test_challenger.py
 │   ├── test_metrics.py
+│   ├── test_scenarios.py
 │   ├── test_artefact.py
 │   ├── test_score.py
 │   ├── test_api.py
@@ -432,7 +478,8 @@ credit-risk-assistant/
     ├── 01_profile.md
     ├── column_profile.csv
     ├── figures/
-    └── model_validation.md
+    ├── model_validation.md
+    └── 04_portfolio_scenarios.md
 ```
 
 Layer 2 adds `src/rag/` to the same repository. One system, not two projects:
